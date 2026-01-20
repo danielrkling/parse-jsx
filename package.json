@@ -1,0 +1,42 @@
+{
+  "name": "jsx-parse",
+  "version": "1.0.0",
+  "description": "A JSX parser for JavaScript tagged template literals",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "module": "dist/index.esm.js",
+  "exports": {
+    ".": {
+      "import": "./dist/index.esm.js",
+      "require": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    }
+  },
+  "scripts": {
+    "build": "tsdown src/index.ts -o dist/index.js && tsdown src/index.ts --format esm -o dist/index.esm.js",
+    "dev": "tsc --watch",
+    "test": "vitest",
+    "test:coverage": "vitest --coverage",
+    "bench": "vitest bench",
+    "type-check": "tsc --noEmit"
+  },
+  "keywords": [
+    "jsx",
+    "parser",
+    "template-literal",
+    "tagged-template"
+  ],
+  "author": "",
+  "license": "MIT",
+  "devDependencies": {
+    "@types/node": "^20.10.6",
+    "@vitest/coverage-v8": "^1.1.0",
+    "html5parser": "*",
+    "typescript": "^5.3.3",
+    "vitest": "^1.1.0"
+  },
+  "dependencies": {
+    "tsdown": "^0.20.0-beta.3"
+  }
+}
