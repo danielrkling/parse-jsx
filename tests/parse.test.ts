@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { jsx } from '../src/index';
+import { jsx, ROOT, ELEMENT, TEXT_NODE, EXPRESSION_NODE, BOOLEAN_PROP, STATIC_PROP, EXPRESSION_PROP, SPREAD_PROP, MIXED_PROP } from '../src/index';
 import { RootNode, ElementNode, TextNode, ExpressionNode } from '../src/parse';
 
 describe('jsx template literal parser', () => {
@@ -7,11 +7,11 @@ describe('jsx template literal parser', () => {
     it('should parse simple element', () => {
       const ast = jsx`<div></div>`;
       
-      expect(ast.type).toBe('Root');
+      expect(ast.type).toBe(ROOT);
       expect(ast.children).toHaveLength(1);
       
       const element = ast.children[0] as ElementNode;
-      expect(element.type).toBe('Element');
+      expect(element.type).toBe(ELEMENT);
       expect(element.name).toBe('div');
     });
 
@@ -22,7 +22,7 @@ describe('jsx template literal parser', () => {
       expect(element.children).toHaveLength(1);
       
       const text = element.children[0] as TextNode;
-      expect(text.type).toBe('Text');
+      expect(text.type).toBe(TEXT_NODE);
       expect(text.value).toBe('Hello');
     });
 
@@ -34,11 +34,11 @@ describe('jsx template literal parser', () => {
       expect(element.children).toHaveLength(2);
       
       const text = element.children[0] as TextNode;
-      expect(text.type).toBe('Text');
+      expect(text.type).toBe(TEXT_NODE);
       expect(text.value).toBe('Hello');
       
       const expr = element.children[1] as ExpressionNode;
-      expect(expr.type).toBe('Expression');
+      expect(expr.type).toBe(EXPRESSION_NODE);
       expect(expr.index).toBe(0);
     });
 
@@ -61,7 +61,7 @@ describe('jsx template literal parser', () => {
       expect(div.name).toBe('div');
       
       const span = div.children.find(child => 
-        (child as ElementNode).type === 'Element'
+        (child as ElementNode).type === ELEMENT
       ) as ElementNode;
       expect(span?.name).toBe('span');
     });
@@ -75,7 +75,7 @@ describe('jsx template literal parser', () => {
       expect(element.props).toHaveLength(1);
       
       const prop = element.props[0];
-      expect(prop.type).toBe('Static');
+      expect(prop.type).toBe(STATIC_PROP);
       expect((prop as any).name).toBe('id');
       expect((prop as any).value).toBe('app');
     });
@@ -86,7 +86,7 @@ describe('jsx template literal parser', () => {
       const element = ast.children[0] as ElementNode;
       const prop = element.props[0];
       
-      expect(prop.type).toBe('Boolean');
+      expect(prop.type).toBe(BOOLEAN_PROP);
       expect((prop as any).name).toBe('checked');
       expect((prop as any).value).toBe(true);
     });
@@ -98,7 +98,7 @@ describe('jsx template literal parser', () => {
       const element = ast.children[0] as ElementNode;
       const prop = element.props[0];
       
-      expect(prop.type).toBe('Expression');
+      expect(prop.type).toBe(EXPRESSION_PROP);
       expect((prop as any).name).toBe('id');
       expect((prop as any).index).toBe(0);
     });
@@ -110,7 +110,7 @@ describe('jsx template literal parser', () => {
       const element = ast.children[0] as ElementNode;
       const prop = element.props[0];
       
-      expect(prop.type).toBe('Expression');
+      expect(prop.type).toBe(EXPRESSION_PROP);
       expect((prop as any).name).toBe('id');
       expect((prop as any).index).toBe(0);
     });
@@ -122,7 +122,7 @@ describe('jsx template literal parser', () => {
       const element = ast.children[0] as ElementNode;
       const prop = element.props[0];
       
-      expect(prop.type).toBe('Mixed');
+      expect(prop.type).toBe(MIXED_PROP);
       expect((prop as any).name).toBe('class');
       expect((prop as any).value).toHaveLength(2);
     });
@@ -153,7 +153,7 @@ describe('jsx template literal parser', () => {
         </div>
       `;
       
-      expect(ast.type).toBe('Root');
+      expect(ast.type).toBe(ROOT);
       expect(ast.children).toHaveLength(1);
       
       const root = ast.children[0] as ElementNode;
@@ -172,7 +172,7 @@ describe('jsx template literal parser', () => {
       
       const ul = ast.children[0] as ElementNode;
       const listItems = ul.children.filter(child => 
-        (child as ElementNode).type === 'Element'
+        (child as ElementNode).type === ELEMENT
       ) as ElementNode[];
       
       expect(listItems).toHaveLength(3);
@@ -263,7 +263,7 @@ describe('jsx template literal parser', () => {
       expect(element.props).toHaveLength(1);
       
       const prop = element.props[0];
-      expect(prop.type).toBe('Spread');
+      expect(prop.type).toBe(SPREAD_PROP);
       expect((prop as any).index).toBe(0);
     });
 
@@ -275,7 +275,7 @@ describe('jsx template literal parser', () => {
       expect(element.props).toHaveLength(3);
       
       expect((element.props[0] as any).name).toBe('class');
-      expect(element.props[1].type).toBe('Spread');
+      expect(element.props[1].type).toBe(SPREAD_PROP);
       expect((element.props[2] as any).name).toBe('disabled');
     });
 
@@ -287,8 +287,8 @@ describe('jsx template literal parser', () => {
       const element = ast.children[0] as ElementNode;
       expect(element.props).toHaveLength(2);
       
-      expect(element.props[0].type).toBe('Spread');
-      expect(element.props[1].type).toBe('Spread');
+      expect(element.props[0].type).toBe(SPREAD_PROP);
+      expect(element.props[1].type).toBe(SPREAD_PROP);
     });
   });
 
@@ -296,7 +296,7 @@ describe('jsx template literal parser', () => {
     it('should parse tag with hyphens', () => {
       const ast = jsx`<my-component></my-component>`;
       
-      expect(ast.type).toBe('Root');
+      expect(ast.type).toBe(ROOT);
       expect(ast.children).toHaveLength(1);
       
       const element = ast.children[0] as ElementNode;

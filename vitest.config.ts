@@ -13,7 +13,7 @@ export default defineConfig({
       ]
     },
     benchmark: {
-      include: ['tests/**/*.bench.ts'],
+      include: ['tests/**/*.bench.ts', 'bench/**/*.bench.ts'],
       outputFile: './benchmarks-results.json',
     }
   }

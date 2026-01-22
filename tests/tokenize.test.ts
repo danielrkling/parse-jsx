@@ -367,4 +367,193 @@ describe('tokenizer', () => {
       expect(idToken?.value).toBe('my-custom.component:v2_test');
     });
   });
+
+  describe('edge cases and malformed syntax', () => {
+    it('should handle single-quoted attribute values', () => {
+      const tokens = tokenize`<div foo='bar'>`;
+      
+      expect(tokens).toContainEqual(expect.objectContaining({
+        type: ATTRIBUTE_VALUE,
+        value: 'bar'
+      }));
+    });
+
+    it('should handle single-quoted attributes with equals', () => {
+      const tokens = tokenize`<div 'foo'='bar'>`;
+      
+      const values = tokens.filter(t => t.type === ATTRIBUTE_VALUE);
+      expect(values).toHaveLength(2);
+      expect(values.map(v => v.value)).toContain('foo');
+      expect(values.map(v => v.value)).toContain('bar');
+    });
+
+    it('should handle unquoted attribute name followed by quoted value', () => {
+      const tokens = tokenize`<div attr"value">`;
+      
+      expect(tokens).toContainEqual(expect.objectContaining({
+        type: IDENTIFIER,
+        value: 'attr'
+      }));
+    });
+
+    it('should handle mixed quoted and unquoted attributes', () => {
+      const tokens = tokenize`<div id="app" class='container' data_value>`;
+      
+      const idTokens = tokens.filter(t => t.type === IDENTIFIER);
+      expect(idTokens.some(t => t.value === 'id')).toBe(true);
+      expect(idTokens.some(t => t.value === 'class')).toBe(true);
+      expect(idTokens.some(t => t.value === 'data_value')).toBe(true);
+    });
+
+    it('should handle multiple spaces before closing tag', () => {
+      const tokens = tokenize`<div id="app"   />`;
+      
+      expect(tokens).toContainEqual(expect.objectContaining({
+        type: SLASH,
+        value: '/'
+      }));
+      expect(tokens).toContainEqual(expect.objectContaining({
+        type: CLOSE_TAG,
+        value: '>'
+      }));
+    });
+
+    it('should handle slash and closing bracket with spaces', () => {
+      const tokens = tokenize`<div /   >`;
+      
+      expect(tokens).toContainEqual(expect.objectContaining({
+        type: SLASH,
+        value: '/'
+      }));
+      expect(tokens).toContainEqual(expect.objectContaining({
+        type: CLOSE_TAG,
+        value: '>'
+      }));
+    });
+
+    it('should handle multiple attributes in tight syntax', () => {
+      const tokens = tokenize`<div a="1"b="2"c="3">`;
+      
+      const attrNames = tokens.filter(t => t.type === IDENTIFIER && t.value && /^[abc]$/.test(t.value as string));
+      expect(attrNames).toHaveLength(3);
+    });
+
+    it('should handle deeply nested quotes', () => {
+      const tokens = tokenize`<div data="value with 'nested' quotes">`;
+      
+      expect(tokens).toContainEqual(expect.objectContaining({
+        type: ATTRIBUTE_VALUE,
+        value: "value with 'nested' quotes"
+      }));
+    });
+
+    it('should handle attribute values with special characters', () => {
+      const tokens = tokenize`<div data="!@#$%^&*()_+-=[]{}|;:,.<>?">`;
+      
+      expect(tokens).toContainEqual(expect.objectContaining({
+        type: ATTRIBUTE_VALUE,
+        value: '!@#$%^&*()_+-=[]{}|;:,.<>?'
+      }));
+    });
+
+    it('should handle empty attribute values', () => {
+      const tokens = tokenize`<div attr="">`;
+      
+      expect(tokens).toContainEqual(expect.objectContaining({
+        type: ATTRIBUTE_VALUE,
+        value: ''
+      }));
+    });
+
+    it('should handle consecutive equals signs (malformed)', () => {
+      const tokens = tokenize`<div attr=="value">`;
+      
+      const equalTokens = tokens.filter(t => t.type === EQUALS);
+      expect(equalTokens.length).toBeGreaterThanOrEqual(1);
+    });
+
+    it('should handle attribute without value but with slash', () => {
+      const tokens = tokenize`<div required />`;
+      
+      expect(tokens).toContainEqual(expect.objectContaining({
+        type: IDENTIFIER,
+        value: 'required'
+      }));
+      expect(tokens).toContainEqual(expect.objectContaining({
+        type: SLASH,
+        value: '/'
+      }));
+    });
+
+    it('should handle multiple slashes before closing bracket', () => {
+      const tokens = tokenize`<div // >`;
+      
+      const slashTokens = tokens.filter(t => t.type === SLASH);
+      expect(slashTokens.length).toBeGreaterThanOrEqual(1);
+    });
+
+    it('should handle numeric attribute values', () => {
+      const tokens = tokenize`<div width="100" height="200" data-count="0">`;
+      
+      const values = tokens.filter(t => t.type === ATTRIBUTE_VALUE);
+      expect(values.map(v => v.value)).toContain('100');
+      expect(values.map(v => v.value)).toContain('200');
+      expect(values.map(v => v.value)).toContain('0');
+    });
+
+    it('should handle URL-like attribute values', () => {
+      const tokens = tokenize`<a href="https://example.com/path?query=value&other=test#section">`;
+      
+      expect(tokens).toContainEqual(expect.objectContaining({
+        type: ATTRIBUTE_VALUE,
+        value: 'https://example.com/path?query=value&other=test#section'
+      }));
+    });
+
+    it('should handle data attributes with hyphens and underscores', () => {
+      const tokens = tokenize`<div data-my_value="test" data_other-name="value">`;
+      
+      const attrNames = tokens.filter(t => t.type === IDENTIFIER && (t.value as string).includes('data'));
+      expect(attrNames.length).toBeGreaterThanOrEqual(2);
+    });
+
+    it('should handle boolean-like attribute values', () => {
+      const tokens = tokenize`<input disabled="disabled" checked="true" required="false">`;
+      
+      const values = tokens.filter(t => t.type === ATTRIBUTE_VALUE);
+      expect(values.map(v => v.value)).toContain('disabled');
+      expect(values.map(v => v.value)).toContain('true');
+      expect(values.map(v => v.value)).toContain('false');
+    });
+
+    it('should handle expression in complex malformed context', () => {
+      const expr = { test: 'value' };
+      const tokens = tokenize`<div attr=${expr} />`;
+      
+      expect(tokens).toContainEqual(expect.objectContaining({
+        type: EXPRESSION,
+        value: expr
+      }));
+    });
+
+    it('should handle whitespace variations', () => {
+      const tokens = tokenize`<div   id   =   "value"   />`;
+      
+      expect(tokens).toContainEqual(expect.objectContaining({
+        type: IDENTIFIER,
+        value: 'id'
+      }));
+      expect(tokens).toContainEqual(expect.objectContaining({
+        type: ATTRIBUTE_VALUE,
+        value: 'value'
+      }));
+    });
+
+    it('should handle tag names that look like HTML entities', () => {
+      const tokens = tokenize`<amp_symbol></amp_symbol>`;
+      
+      const idTokens = tokens.filter(t => t.type === IDENTIFIER);
+      expect(idTokens[0]?.value).toBe('amp_symbol');
+    });
+  });
 });

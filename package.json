@@ -14,7 +14,7 @@
     }
   },
   "scripts": {
-    "build": "tsdown src/index.ts -o dist/index.js && tsdown src/index.ts --format esm -o dist/index.esm.js",
+    "build": "tsdown src/index.ts -o dist/index.js && tsdown src/index.ts --format esm -o dist/index.esm.js && tsdown src/index.ts --format esm -o dist/index.esm.min.js --minify",
     "dev": "tsc --watch",
     "test": "vitest",
     "test:coverage": "vitest --coverage",
