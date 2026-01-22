@@ -39,7 +39,7 @@ describe('jsx template literal parser', () => {
       
       const expr = element.children[1] as ExpressionNode;
       expect(expr.type).toBe(EXPRESSION_NODE);
-      expect(expr.index).toBe(0);
+      expect(expr.value).toBe(0);
     });
 
     it('should parse self-closing element', () => {
@@ -65,7 +65,7 @@ describe('jsx template literal parser', () => {
       ) as ElementNode;
       expect(span?.name).toBe('span');
     });
-  });
+  }); 
 
   describe('attributes', () => {
     it('should parse string attribute', () => {
@@ -100,7 +100,7 @@ describe('jsx template literal parser', () => {
       
       expect(prop.type).toBe(EXPRESSION_PROP);
       expect((prop as any).name).toBe('id');
-      expect((prop as any).index).toBe(0);
+      expect((prop as any).value).toBe(0);
     });
 
     it('should parse quoted expression attribute', () => {
@@ -112,7 +112,7 @@ describe('jsx template literal parser', () => {
       
       expect(prop.type).toBe(EXPRESSION_PROP);
       expect((prop as any).name).toBe('id');
-      expect((prop as any).index).toBe(0);
+      expect((prop as any).value).toBe(0);
     });
 
     it('should parse mixed attribute (string + expression)', () => {
@@ -199,15 +199,16 @@ describe('jsx template literal parser', () => {
       expect(button.props.length).toBeGreaterThan(0);
     });
 
-    it('should preserve position information', () => {
+    it('should parse and build complete AST', () => {
+      // Note: Position tracking was removed as an optimization.
+      // AST nodes no longer have start/end properties.
       const ast = jsx`<div>test</div>`;
       
-      expect(ast.start).toBeDefined();
-      expect(ast.end).toBeDefined();
+      expect(ast.children).toHaveLength(1);
       
       const element = ast.children[0] as ElementNode;
-      expect(element.start).toBeDefined();
-      expect(element.end).toBeDefined();
+      expect(element.name).toBe('div');
+      expect(element.children).toHaveLength(1);
     });
   });
 
@@ -264,7 +265,7 @@ describe('jsx template literal parser', () => {
       
       const prop = element.props[0];
       expect(prop.type).toBe(SPREAD_PROP);
-      expect((prop as any).index).toBe(0);
+      expect((prop as any).value).toBe(0);
     });
 
     it('should parse spread with other props', () => {

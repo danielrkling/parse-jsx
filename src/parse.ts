@@ -1,8 +1,8 @@
-import { Token, TokenType, OPEN_TAG, CLOSE_TAG, SLASH, IDENTIFIER, EQUALS, ATTRIBUTE_VALUE, TEXT, EXPRESSION } from './tokenize';
+import { Token, TokenType, OPEN_TAG_TOKEN, CLOSE_TAG_TOKEN, SLASH_TOKEN, IDENTIFIER_TOKEN, EQUALS_TOKEN, ATTRIBUTE_VALUE_TOKEN, TEXT_TOKEN, EXPRESSION_TOKEN, ATTRIBUTE_EXPRESSION_TOKEN, OpenTagToken, CloseTagToken, IdentifierToken, TextToken, ExpressionToken, AttributeValueToken, SlashToken, EqualsToken, AttributeExpressionToken } from './tokenize';
 
 // Node type constants
-export const ROOT = 0;
-export const ELEMENT = 1;
+export const ROOT_NODE = 0;
+export const ELEMENT_NODE = 1;
 export const TEXT_NODE = 2;
 export const EXPRESSION_NODE = 3;
 
@@ -13,35 +13,30 @@ export const EXPRESSION_PROP = 2;
 export const SPREAD_PROP = 3;
 export const MIXED_PROP = 4;
 
-export type NodeType = typeof ROOT | typeof ELEMENT | typeof TEXT_NODE | typeof EXPRESSION_NODE;
+export type NodeType = typeof ROOT_NODE | typeof ELEMENT_NODE | typeof TEXT_NODE | typeof EXPRESSION_NODE;
 export type PropType = typeof BOOLEAN_PROP | typeof STATIC_PROP | typeof EXPRESSION_PROP | typeof SPREAD_PROP | typeof MIXED_PROP;
 
-export interface ASTNode {
-  type: NodeType;
-  start: number;
-  end: number;
-}
 
-export interface RootNode extends ASTNode {
-  type: typeof ROOT;
+export interface RootNode {
+  type: typeof ROOT_NODE;
   children: (ElementNode | TextNode | ExpressionNode)[];
 }
 
-export interface ElementNode extends ASTNode {
-  type: typeof ELEMENT;
+export interface ElementNode {
+  type: typeof ELEMENT_NODE;
   name: string;
   props: PropNode[];
   children: (ElementNode | TextNode | ExpressionNode)[];
 }
 
-export interface TextNode extends ASTNode {
+export interface TextNode {
   type: typeof TEXT_NODE;
   value: string;
 }
 
-export interface ExpressionNode extends ASTNode {
+export interface ExpressionNode {
   type: typeof EXPRESSION_NODE;
-  index: number;
+  value: number;
 }
 
 export interface BooleanProp {
@@ -54,179 +49,171 @@ export interface StaticProp {
   name: string;
   type: typeof STATIC_PROP;
   value: string;
+  quoteChar?: string;
 }
 
 export interface ExpressionProp {
   name: string;
   type: typeof EXPRESSION_PROP;
-  index: number;
+  value: number;
 }
 
 export interface SpreadProp {
   type: typeof SPREAD_PROP;
-  index: number;
+  value: number;
 }
 
 export interface MixedProp {
   name: string;
   type: typeof MIXED_PROP;
-  value: Array<{ type: PropType; value?: string; index?: number }>;
+  value: Array<string|number>;
+  quoteChar?: string;
 }
 
 export type PropNode = BooleanProp | StaticProp | ExpressionProp | SpreadProp | MixedProp;
 
-function peek(tokens: Token[], pos: number): Token | undefined {
-  return tokens[pos];
-}
+class Parser {
+  tokens: Token[];
+  pos = 0;
 
-function eat(tokens: Token[], pos: number, type?: TokenType): [Token, number] {
-  const token = peek(tokens, pos);
-  if (token && (!type || token.type === type)) {
-    return [token, pos + 1];
-  }
-  throw new Error(
-    `Unexpected token: ${token?.type}, expected: ${type} at ${token?.start}`
-  );
-}
-
-export function parse(tokens: Token[]): RootNode {
-  let pos = 0;
-
-  function peekToken(): Token | undefined {
-    return tokens[pos];
+  constructor(tokens: Token[]) {
+    this.tokens = tokens;
   }
 
-  function eatToken(type?: TokenType): Token {
-    const token = peekToken();
+  peekToken(): Token | undefined {
+    return this.tokens[this.pos];
+  }
+
+  eatToken<T extends TokenType>(type: T): Extract<Token, { type: T }> {
+    const token = this.peekToken();
     if (token && (!type || token.type === type)) {
-      pos++;
-      return token;
+      this.pos++;
+      return token as Extract<Token, { type: T }>;
     }
     throw new Error(
-      `Unexpected token: ${token?.type}, expected: ${type} at ${token?.start}`
+      `Unexpected token: ${token?.type}, expected: ${type}`
     );
   }
 
-  function parseNode(): ElementNode | TextNode | ExpressionNode | null {
-    const token = peekToken();
+  parseNode(): ElementNode | TextNode | ExpressionNode | null {
+    const token = this.peekToken();
     if (!token) return null;
 
-    if (token.type === OPEN_TAG) {
-      if (tokens[pos + 1]?.type === SLASH) {
+    if (token.type === OPEN_TAG_TOKEN) {
+      if (this.tokens[this.pos + 1]?.type === SLASH_TOKEN) {
         return null;
       }
-      return parseElement();
+      return this.parseElement();
     }
 
-    if (token.type === TEXT) {
-      const t = eatToken(TEXT);
+    if (token.type === TEXT_TOKEN) {
+      const t = this.eatToken(TEXT_TOKEN);
       return { 
         type: TEXT_NODE, 
-        value: t.value as string, 
-        start: t.start, 
-        end: t.end 
+        value: t.value
       };
     }
 
-    if (token.type === EXPRESSION && !token.attrContext) {
-      const e = eatToken(EXPRESSION);
+    if (token.type === EXPRESSION_TOKEN) {
+      const e = this.eatToken(EXPRESSION_TOKEN);
       return { 
         type: EXPRESSION_NODE, 
-        index: e.index as number, 
-        start: e.start, 
-        end: e.end 
+        value: e.value
       };
     }
 
-    pos++;
+    this.pos++;
     return null;
   }
 
-  function parseElement(): ElementNode {
-    const startToken = eatToken(OPEN_TAG);
-    const nameToken = eatToken(IDENTIFIER);
-    const props = parseProps();
+  parseElement(): ElementNode {
+    const startToken = this.eatToken(OPEN_TAG_TOKEN);
+    const nameToken = this.eatToken(IDENTIFIER_TOKEN);
+    const props = this.parseProps();
 
     let children: (ElementNode | TextNode | ExpressionNode)[] = [];
-    let end = 0;
 
-    if (peekToken()?.type === SLASH) {
-      eatToken(SLASH);
-      const close = eatToken(CLOSE_TAG);
-      end = close.end;
+    if (this.peekToken()?.type === SLASH_TOKEN) {
+      this.eatToken(SLASH_TOKEN);
+      this.eatToken(CLOSE_TAG_TOKEN);
     } else {
-      eatToken(CLOSE_TAG);
+      this.eatToken(CLOSE_TAG_TOKEN);
       
-      while (pos < tokens.length) {
-        if (peekToken()?.type === OPEN_TAG && 
-            tokens[pos + 1]?.type === SLASH) {
+      while (this.pos < this.tokens.length) {
+        if (this.peekToken()?.type === OPEN_TAG_TOKEN && 
+            this.tokens[this.pos + 1]?.type === SLASH_TOKEN) {
           break;
         }
-        const child = parseNode();
+        const child = this.parseNode();
         if (child) children.push(child);
       }
 
-      eatToken(OPEN_TAG);
-      eatToken(SLASH);
-      eatToken(IDENTIFIER);
-      const close = eatToken(CLOSE_TAG);
-      end = close.end;
+      this.eatToken(OPEN_TAG_TOKEN);
+      this.eatToken(SLASH_TOKEN);
+      this.eatToken(IDENTIFIER_TOKEN);
+      this.eatToken(CLOSE_TAG_TOKEN);
     }
 
     return {
-      type: ELEMENT,
-      name: nameToken.value as string,
+      type: ELEMENT_NODE,
+      name: nameToken.value,
       props,
       children,
-      start: startToken.start,
-      end
     };
   }
 
-  function parseProps(): PropNode[] {
+  parseProps(): PropNode[] {
     const props: PropNode[] = [];
     
-    while (pos < tokens.length && 
-           peekToken()?.type !== CLOSE_TAG && 
-           peekToken()?.type !== SLASH) {
+    while (this.pos < this.tokens.length && 
+           this.peekToken()?.type !== CLOSE_TAG_TOKEN && 
+           this.peekToken()?.type !== SLASH_TOKEN) {
       
       // Check for spread property: <div ${...} />
-      if (peekToken()?.type === EXPRESSION) {
-        const exp = eatToken(EXPRESSION);
-        props.push({ type: SPREAD_PROP, index: exp.index as number });
+      if (this.peekToken()?.type === EXPRESSION_TOKEN) {
+        const exp = this.eatToken(EXPRESSION_TOKEN);
+        props.push({ type: SPREAD_PROP, value: exp.value });
         continue;
       }
       
-      const name = (eatToken(IDENTIFIER).value as string);
+      const name = this.eatToken(IDENTIFIER_TOKEN).value;
       
-      if (peekToken()?.type !== EQUALS) {
+      if (this.peekToken()?.type !== EQUALS_TOKEN) {
         props.push({ name, type: BOOLEAN_PROP, value: true });
         continue;
       }
 
-      eatToken(EQUALS);
+      this.eatToken(EQUALS_TOKEN);
       
       // Collect all parts of the attribute value (may be expression, static text, or both)
-      const parts: Array<{ type: PropType; value?: string; index?: number }> = [];
+      const parts: Array<{ type: PropType; value?: string | number; quoteChar?: string }> = [];
       let hasAttributeValue = false;
+      let quoteChar: string | undefined;
       
-      while (pos < tokens.length && 
-            (peekToken()?.type === ATTRIBUTE_VALUE || 
-             peekToken()?.type === EXPRESSION)) {
+      while (this.pos < this.tokens.length && 
+            (this.peekToken()?.type === ATTRIBUTE_VALUE_TOKEN || 
+             this.peekToken()?.type === ATTRIBUTE_EXPRESSION_TOKEN ||
+             this.peekToken()?.type === EXPRESSION_TOKEN)) {
         
-        // If we've seen an ATTRIBUTE_VALUE and next is EXPRESSION outside attr context, stop
+        // Stop if we've seen a value and now see an EXPRESSION outside quotes (unquoted attr boundary)
         if (hasAttributeValue && 
-            peekToken()?.type === EXPRESSION && 
-            (peekToken() as any).attrContext === false) {
+            this.peekToken()?.type === EXPRESSION_TOKEN) {
           break;
         }
         
-        const part = eatToken();
-        if (part.type === EXPRESSION) {
-          parts.push({ type: EXPRESSION_PROP, index: part.index });
-        } else {
-          parts.push({ type: STATIC_PROP, value: part.value as string });
+        const part = this.peekToken();
+        if (part && (part.type === ATTRIBUTE_EXPRESSION_TOKEN || part.type === EXPRESSION_TOKEN)) {
+          const exp = part.type === ATTRIBUTE_EXPRESSION_TOKEN 
+            ? this.eatToken(ATTRIBUTE_EXPRESSION_TOKEN)
+            : this.eatToken(EXPRESSION_TOKEN);
+          parts.push({ type: EXPRESSION_PROP, value: exp.value });
+        } else if (part && part.type === ATTRIBUTE_VALUE_TOKEN) {
+          const attr = this.eatToken(ATTRIBUTE_VALUE_TOKEN);
+          quoteChar = attr.quoteChar;
+          parts.push({ type: STATIC_PROP, value: attr.value, quoteChar: attr.quoteChar });
           hasAttributeValue = true;
+        } else {
+          this.eatToken();
         }
       }
 
@@ -242,33 +229,36 @@ export function parse(tokens: Token[]): RootNode {
         props.push({ 
           name, 
           type: STATIC_PROP, 
-          value: meaningfulParts[0].value as string 
+          value: meaningfulParts[0].value as string,
+          quoteChar: meaningfulParts[0].quoteChar
         });
       } else if (meaningfulParts.length === 1 && meaningfulParts[0].type === EXPRESSION_PROP) {
         // Single expression value
         props.push({ 
           name, 
           type: EXPRESSION_PROP, 
-          index: meaningfulParts[0].index as number 
+          value: meaningfulParts[0].value as number
         });
       } else {
         // Mixed: multiple parts with expressions and/or static text
-        props.push({ name, type: MIXED_PROP, value: meaningfulParts });
+        props.push({ name, type: MIXED_PROP, value: meaningfulParts.map(p => p.value), quoteChar });
       }
     }
     
     return props;
   }
+}
+
+export function parse(tokens: Token[]): RootNode {
+  const parser = new Parser(tokens);
 
   const root: RootNode = {
-    type: ROOT,
-    children: [],
-    start: tokens[0]?.start || 0,
-    end: tokens[tokens.length - 1]?.end || 0
+    type: ROOT_NODE,
+    children: []
   };
 
-  while (pos < tokens.length) {
-    const node = parseNode();
+  while (parser.pos < parser.tokens.length) {
+    const node = parser.parseNode();
     if (node) root.children.push(node);
   }
 

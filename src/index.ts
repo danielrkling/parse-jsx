@@ -25,7 +25,6 @@ export type {
   TokenType 
 } from './tokenize';
 export type {
-  ASTNode,
   RootNode,
   ElementNode,
   TextNode,
@@ -37,8 +36,8 @@ export type {
   MixedProp
 } from './parse';
 export {
-  ROOT,
-  ELEMENT,
+  ROOT_NODE as ROOT,
+  ELEMENT_NODE as ELEMENT,
   TEXT_NODE,
   EXPRESSION_NODE,
   BOOLEAN_PROP,
