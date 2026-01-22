@@ -186,7 +186,7 @@ class Parser {
       this.eatToken(EQUALS_TOKEN);
       
       // Collect all parts of the attribute value (may be expression, static text, or both)
-      const parts: Array<{ type: PropType; value?: string | number; quoteChar?: string }> = [];
+      const parts: Array<string|number> = [];
       let hasAttributeValue = false;
       let quoteChar: string | undefined;
       
@@ -206,11 +206,11 @@ class Parser {
           const exp = part.type === ATTRIBUTE_EXPRESSION_TOKEN 
             ? this.eatToken(ATTRIBUTE_EXPRESSION_TOKEN)
             : this.eatToken(EXPRESSION_TOKEN);
-          parts.push({ type: EXPRESSION_PROP, value: exp.value });
+          parts.push(exp.value);
         } else if (part && part.type === ATTRIBUTE_VALUE_TOKEN) {
           const attr = this.eatToken(ATTRIBUTE_VALUE_TOKEN);
           quoteChar = attr.quoteChar;
-          parts.push({ type: STATIC_PROP, value: attr.value, quoteChar: attr.quoteChar });
+          parts.push(attr.value);
           hasAttributeValue = true;
         } else {
           this.eatToken();
@@ -218,30 +218,30 @@ class Parser {
       }
 
       // Filter out empty static parts (artifacts from closing quotes in templates)
-      const meaningfulParts = parts.filter(p => p.type === EXPRESSION_PROP || (p.type === STATIC_PROP && p.value !== ''));
+      const meaningfulParts = parts.filter(p => p !== '');
 
       // Determine prop type based on what we collected
       if (meaningfulParts.length === 0) {
         // No meaningful value (all empty)
         props.push({ name, type: STATIC_PROP, value: '' });
-      } else if (meaningfulParts.length === 1 && meaningfulParts[0].type === STATIC_PROP) {
+      } else if (meaningfulParts.length === 1 && typeof meaningfulParts[0] === 'string') {
         // Single static value
         props.push({ 
           name, 
           type: STATIC_PROP, 
-          value: meaningfulParts[0].value as string,
-          quoteChar: meaningfulParts[0].quoteChar
+          value: meaningfulParts[0],
+          quoteChar
         });
-      } else if (meaningfulParts.length === 1 && meaningfulParts[0].type === EXPRESSION_PROP) {
+      } else if (meaningfulParts.length === 1 && typeof meaningfulParts[0] === 'number') {
         // Single expression value
         props.push({ 
           name, 
           type: EXPRESSION_PROP, 
-          value: meaningfulParts[0].value as number
+          value: meaningfulParts[0]
         });
       } else {
         // Mixed: multiple parts with expressions and/or static text
-        props.push({ name, type: MIXED_PROP, value: meaningfulParts.map(p => p.value), quoteChar });
+        props.push({ name, type: MIXED_PROP, value: meaningfulParts, quoteChar });
       }
     }
     
