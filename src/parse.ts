@@ -212,10 +212,11 @@ class Parser {
           quoteChar = attr.quoteChar;
           parts.push(attr.value);
           hasAttributeValue = true;
-        } else {
-          this.eatToken();
+      } else {
+          this.pos++;
         }
       }
+
 
       // Filter out empty static parts (artifacts from closing quotes in templates)
       const meaningfulParts = parts.filter(p => p !== '');

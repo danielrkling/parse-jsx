@@ -36,8 +36,8 @@ export type {
   MixedProp
 } from './parse';
 export {
-  ROOT_NODE as ROOT,
-  ELEMENT_NODE as ELEMENT,
+  ROOT_NODE,
+  ELEMENT_NODE,
   TEXT_NODE,
   EXPRESSION_NODE,
   BOOLEAN_PROP,
