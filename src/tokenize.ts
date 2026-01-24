@@ -194,23 +194,24 @@ class Tokenizer {
       // 5. Outside tags: accumulate text until we hit < or end of meaningful content
       if (this.tagDepth === 0 && !this.inQuotes) {
         // Skip pure whitespace
-        if (isWhitespace(str.charCodeAt(cursor))) {
-          cursor++;
-          continue;
+        // if (isWhitespace(str.charCodeAt(cursor))) {
+        //   cursor++;
+        //   continue;
+        // }
+        const indexOfNextTag = str.indexOf('<', cursor);
+        if (indexOfNextTag > cursor) {
+            const textValue = str.slice(cursor, indexOfNextTag);
+            const trimmedText = textValue.trim();
+            if (trimmedText) {
+              this.tokens.push({
+                type: TEXT_TOKEN, 
+                value: textValue
+              });
+            }
+            cursor = indexOfNextTag;
+            continue;
         }
-
-        let textValue = '';
-        while (cursor < str.length && str[cursor] !== '<') {
-          textValue += str[cursor];
-          cursor++;
-        }
-        const trimmedText = textValue.trim();
-        if (trimmedText) {
-          this.tokens.push({ 
-            type: TEXT_TOKEN, 
-            value: trimmedText
-          });
-        }
+        cursor++;
         continue;
       }
 

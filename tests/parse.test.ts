@@ -47,7 +47,7 @@ describe("Simple AST", () => {
           name: "div",
           props: [],
           children: [
-            { type: TEXT_NODE, value: "Hello" },
+            { type: TEXT_NODE, value: "Hello " },
             { type: EXPRESSION_NODE, value: 0 },
           ],
         },
@@ -157,6 +157,22 @@ describe("Attributes", () => {
     });
   });
 
+    it("single quoted expression attribute", () => {
+    const id = "my-id";
+    const ast = jsx`<div id='${id}'></div>`;
+    expect(ast).toEqual({
+      type: ROOT_NODE,
+      children: [
+        {
+          type: ELEMENT_NODE,
+          name: "div",
+          props: [{ name: "id", type: EXPRESSION_PROP, value: 0 }],
+          children: [],
+        },
+      ],
+    });
+  });
+
   it("mixed attribute (string + expression)", () => {
     const active = true;
     const ast = jsx`<div class="btn ${active ? "active" : ""}"></div>`;
@@ -171,6 +187,75 @@ describe("Attributes", () => {
               name: "class",
               type: MIXED_PROP,
               value: ["btn ", 0],
+              quoteChar: '"',
+            },
+          ],
+          children: [],
+        },
+      ],
+    });
+  });
+
+    it("mixed attribute (string + expression)", () => {
+    const active = true;
+    const ast = jsx`<div class="btn ${active ? "active" : ""}"></div>`;
+    expect(ast).toEqual({
+      type: ROOT_NODE,
+      children: [
+        {
+          type: ELEMENT_NODE,
+          name: "div",
+          props: [
+            {
+              name: "class",
+              type: MIXED_PROP,
+              value: ["btn ", 0],
+              quoteChar: '"',
+            },
+          ],
+          children: [],
+        },
+      ],
+    });
+  });
+
+  it("mixed attribute (string + expression) with single quotes", () => {
+    const active = true;
+    const ast = jsx`<div class='btn ${active ? "active" : ""}'></div>`;
+    expect(ast).toEqual({
+      type: ROOT_NODE,
+      children: [
+        {
+          type: ELEMENT_NODE,
+          name: "div",
+          props: [
+            {
+              name: "class",
+              type: MIXED_PROP,
+              value: ["btn ", 0],
+              quoteChar: "'",
+            },
+          ],
+          children: [],
+        },
+      ],
+    });
+  });
+
+  it("mixed attribute (2 expression) with whitespace", () => {
+    const active = true;
+    const ast = jsx`<div class="${active ? "active" : ""}  ${"1"}"></div>`;
+    expect(ast).toEqual({
+      type: ROOT_NODE,
+      children: [
+        {
+          type: ELEMENT_NODE,
+          name: "div",
+          props: [
+            {
+              name: "class",
+              type: MIXED_PROP,
+              value: [0, "  ", 1],
               quoteChar: '"',
             },
           ],
@@ -195,6 +280,112 @@ describe("Attributes", () => {
             { name: "disabled", type: BOOLEAN_PROP, value: true },
           ],
           children: [],
+        },
+      ],
+    });
+  });
+});
+
+describe("whitespace handling", () => {
+  it("preserves whitespace in text nodes", () => {
+    const ast = jsx`<div>   Hello   World   </div>`;
+    expect(ast).toEqual({
+      type: ROOT_NODE,
+      children: [
+        {
+          type: ELEMENT_NODE,
+          name: "div",
+          props: [],
+          children: [{ type: TEXT_NODE, value: "   Hello   World   " }],
+        },
+      ],
+    });
+  });
+  it("preserves whitespace in text nodes with elements", () => {
+    const ast = jsx`<div>
+       Hello World
+       <span>!</span> 
+       </div>`;
+    expect(ast).toEqual({
+      type: ROOT_NODE,
+      children: [
+        {
+          type: ELEMENT_NODE,
+          name: "div",
+          props: [],
+          children: [
+            {
+              type: TEXT_NODE,
+              value: `
+        Hello World
+        `,
+            },
+            {
+              type: ELEMENT_NODE,
+              name: "span",
+              props: [],
+              children: [{ type: TEXT_NODE, value: "!" }],
+            },
+          ],
+        },
+      ],
+    });
+  });
+
+  it("preserves whitespace in mixed text nodes", () => {
+    const name = "User";
+    const ast = jsx`<div>  Hello ${name}  !  </div>`;
+    expect(ast).toEqual({
+      type: ROOT_NODE,
+      children: [
+        {
+          type: ELEMENT_NODE,
+          name: "div",
+          props: [],
+          children: [
+            { type: TEXT_NODE, value: "  Hello " },
+            { type: EXPRESSION_NODE, value: 0 },
+            { type: TEXT_NODE, value: "  !  " },
+          ],
+        },
+      ],
+    });
+  });
+
+  it("trims whitespace-only text nodes around expressions", () => {
+    const name = "User";
+    const ast = jsx`<div>
+      ${name}
+    </div>`;
+    expect(ast).toEqual({
+      type: ROOT_NODE,
+      children: [
+        {
+          type: ELEMENT_NODE,
+          name: "div",
+          props: [],
+          children: [{ type: EXPRESSION_NODE, value: 0 }],
+        },
+      ],
+    });
+  });
+
+  it("filters only beginning and trailing whitespace in mixed text nodes", () => {
+    const name = "User";
+    const ast = jsx`<div>  ${"Hello"} ${name}  !  </div>`;
+    expect(ast).toEqual({
+      type: ROOT_NODE,
+      children: [
+        {
+          type: ELEMENT_NODE,
+          name: "div",
+          props: [],
+          children: [
+            { type: EXPRESSION_NODE, value: 0 },
+            { type: TEXT_NODE, value: " " },
+            { type: EXPRESSION_NODE, value: 1 },
+            { type: TEXT_NODE, value: "  !  " },
+          ],
         },
       ],
     });
@@ -284,6 +475,4 @@ describe("Complex Examples", () => {
       ],
     });
   });
-
-
 });

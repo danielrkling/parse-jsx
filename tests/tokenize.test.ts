@@ -6,10 +6,13 @@ describe('tokenizer', () => {
     it('should tokenize opening tag', () => {
       const tokens = tokenize`<div`;
       
-      expect(tokens).toContainEqual(expect.objectContaining({
+      expect(tokens).toEqual([{
         type: OPEN_TAG_TOKEN,
         value: '<'
-      }));
+      }, {
+        type: IDENTIFIER_TOKEN,
+        value: 'div'
+      }]);
     });
 
     it('should tokenize closing tag', () => {
