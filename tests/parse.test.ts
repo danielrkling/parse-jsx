@@ -287,6 +287,41 @@ describe("Attributes", () => {
 });
 
 describe("whitespace handling", () => {
+  it("preserves whitespace in text nodes in root", () => {
+    const ast = jsx`  Hello <div>   Hello   World   </div> !   `;
+    expect(ast).toEqual({
+      type: ROOT_NODE,
+      children: [
+        { type: TEXT_NODE, value: "  Hello " },
+        {
+          type: ELEMENT_NODE,
+          name: "div",
+          props: [],
+          children: [{ type: TEXT_NODE, value: "   Hello   World   " }],
+
+        },
+        { type: TEXT_NODE, value: " !   " },
+      ],
+    });
+  });
+
+  it("trims leading and trailing whitespace-only text nodes at root", () => {
+    const ast = jsx`
+    <div>Hello World</div>
+    `;
+    expect(ast).toEqual({
+      type: ROOT_NODE,
+      children: [
+        {
+          type: ELEMENT_NODE,
+          name: "div",
+          props: [],
+          children: [{ type: TEXT_NODE, value: "Hello World" }],
+        },
+      ],
+    });
+  });
+
   it("preserves whitespace in text nodes", () => {
     const ast = jsx`<div>   Hello   World   </div>`;
     expect(ast).toEqual({
@@ -317,8 +352,8 @@ describe("whitespace handling", () => {
             {
               type: TEXT_NODE,
               value: `
-        Hello World
-        `,
+       Hello World
+       `,
             },
             {
               type: ELEMENT_NODE,

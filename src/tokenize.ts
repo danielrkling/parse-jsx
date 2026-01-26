@@ -176,11 +176,13 @@ class Tokenizer {
           value += str[cursor];
           cursor++;
         }
-        this.tokens.push({ 
-          type: ATTRIBUTE_VALUE_TOKEN, 
-          value,
-          quoteChar: this.quoteChar!
-        });
+        if (value.length > 0) {
+            this.tokens.push({ 
+            type: ATTRIBUTE_VALUE_TOKEN, 
+            value,
+            quoteChar: this.quoteChar!
+            });
+        }
 
         // Move past closing quote
         if (cursor < str.length && str[cursor] === this.quoteChar) {
@@ -191,28 +193,34 @@ class Tokenizer {
         continue;
       }
 
-      // 5. Outside tags: accumulate text until we hit < or end of meaningful content
+// 5. Outside tags: accumulate text until we hit < or end of meaningful content
       if (this.tagDepth === 0 && !this.inQuotes) {
-        // Skip pure whitespace
-        // if (isWhitespace(str.charCodeAt(cursor))) {
-        //   cursor++;
-        //   continue;
-        // }
         const indexOfNextTag = str.indexOf('<', cursor);
-        if (indexOfNextTag > cursor) {
-            const textValue = str.slice(cursor, indexOfNextTag);
-            const trimmedText = textValue.trim();
-            if (trimmedText) {
-              this.tokens.push({
-                type: TEXT_TOKEN, 
-                value: textValue
-              });
-            }
-            cursor = indexOfNextTag;
-            continue;
+        if (indexOfNextTag === cursor) {
+          // We're at a tag, skip to next iteration
+          cursor++;
+          continue;
+        } else if (indexOfNextTag > cursor) {
+          // There's text before the next tag
+          const textValue = str.slice(cursor, indexOfNextTag);
+          this.tokens.push({ 
+            type: TEXT_TOKEN, 
+            value: textValue
+          });
+          cursor = indexOfNextTag;
+          continue;
+        } else {
+          // No more tags in this string, get all remaining text
+          const textValue = str.slice(cursor);
+          if (textValue.length > 0) {
+            this.tokens.push({ 
+              type: TEXT_TOKEN, 
+              value: textValue
+            });
+          }
+          cursor = str.length;
+          continue;
         }
-        cursor++;
-        continue;
       }
 
       // 6. Fallback: skip unknown character

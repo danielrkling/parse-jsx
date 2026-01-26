@@ -108,6 +108,10 @@ class Parser {
 
     if (token.type === TEXT_TOKEN) {
       const t = this.eatToken(TEXT_TOKEN);
+      const trimmedValue = t.value.trim();
+      if (trimmedValue === '' && (this.tokens[this.pos - 2]?.type === CLOSE_TAG_TOKEN || this.tokens[this.pos]?.type === OPEN_TAG_TOKEN)) {
+        return null;
+      }
       return { 
         type: TEXT_NODE, 
         value: t.value

@@ -15,31 +15,62 @@ describe('tokenizer', () => {
       }]);
     });
 
-    it('should tokenize closing tag', () => {
+    it('should tokenize complete tag', () => {
       const tokens = tokenize`<div>`;
       
-      expect(tokens).toContainEqual(expect.objectContaining({
+      expect(tokens).toEqual([{
+        type: OPEN_TAG_TOKEN,
+        value: '<'
+      }, {
+        type: IDENTIFIER_TOKEN,
+        value: 'div'
+      }, {
         type: CLOSE_TAG_TOKEN,
         value: '>'
-      }));
+      }]);
     });
 
-    it('should tokenize slash', () => {
+    it('should tokenize self-closing tag', () => {
       const tokens = tokenize`<div />`;
       
-      expect(tokens).toContainEqual(expect.objectContaining({
+      expect(tokens).toEqual([{
+        type: OPEN_TAG_TOKEN,
+        value: '<'
+      }, {
+        type: IDENTIFIER_TOKEN,
+        value: 'div'
+      }, {
         type: SLASH_TOKEN,
         value: '/'
-      }));
+      }, {
+        type: CLOSE_TAG_TOKEN,
+        value: '>'
+      }]);
     });
 
-    it('should tokenize equals', () => {
+    it('should tokenize attribute with value', () => {
       const tokens = tokenize`<div id="app">`;
       
-      expect(tokens).toContainEqual(expect.objectContaining({
+      expect(tokens).toEqual([{
+        type: OPEN_TAG_TOKEN,
+        value: '<'
+      }, {
+        type: IDENTIFIER_TOKEN,
+        value: 'div'
+      }, {
+        type: IDENTIFIER_TOKEN,
+        value: 'id'
+      }, {
         type: EQUALS_TOKEN,
         value: '='
-      }));
+      }, {
+        type: ATTRIBUTE_VALUE_TOKEN,
+        value: 'app',
+        quoteChar: '"'
+      }, {
+        type: CLOSE_TAG_TOKEN,
+        value: '>'
+      }]);
     });
   });
 
@@ -69,58 +100,120 @@ describe('tokenizer', () => {
     });
   });
 
-  describe('text nodes', () => {
+describe('text nodes', () => {
     it('should tokenize simple text', () => {
       const tokens = tokenize`Hello`;
       
-      const textToken = tokens.find(t => t.type === TEXT_TOKEN);
-      expect(textToken).toBeDefined();
-      expect(textToken?.value).toBe('Hello');
+      expect(tokens).toEqual([{
+        type: TEXT_TOKEN,
+        value: 'Hello'
+      }]);
     });
 
     it('should tokenize text with numbers', () => {
       const tokens = tokenize`Hello 123`;
       
-      const textToken = tokens.find(t => t.type === TEXT_TOKEN);
-      expect(textToken?.value).toBe('Hello 123');
+      expect(tokens).toEqual([{
+        type: TEXT_TOKEN,
+        value: 'Hello 123'
+      }]);
     });
 
-    it('should skip whitespace-only text', () => {
+    it('should preserve whitespace-only text', () => {
       const tokens = tokenize`   `;
       
-      const textToken = tokens.find(t => t.type === TEXT_TOKEN);
-      expect(textToken).toBeUndefined();
+      expect(tokens).toEqual([{
+        type: TEXT_TOKEN,
+        value: '   '
+      }]);
     });
 
-    it('should trim whitespace from text', () => {
+    it('should preserve whitespace around text', () => {
       const tokens = tokenize`  Hello World  `;
       
-      const textToken = tokens.find(t => t.type === TEXT_TOKEN);
-      expect(textToken?.value).toBe('Hello World');
+      expect(tokens).toEqual([{
+        type: TEXT_TOKEN,
+        value: '  Hello World  '
+      }]);
+    });
+
+    it('should handle multiline text', () => {
+      const tokens = tokenize`Line 1
+Line 2`;
+      
+      expect(tokens).toEqual([{
+        type: TEXT_TOKEN,
+        value: 'Line 1\nLine 2'
+      }]);
+    });
+
+    it('should handle tabs', () => {
+      const tokens = tokenize`\tTabbed text`;
+      
+      expect(tokens).toEqual([{
+        type: TEXT_TOKEN,
+        value: '\tTabbed text'
+      }]);
     });
   });
 
-  describe('attribute values', () => {
+describe('attribute values', () => {
     it('should tokenize quoted string', () => {
       const tokens = tokenize`<div id="hello">`;
       
-      const valueToken = tokens.find(t => t.type === ATTRIBUTE_VALUE_TOKEN);
-      expect(valueToken).toBeDefined();
-      expect(valueToken?.value).toBe('hello');
+      expect(tokens).toEqual([{
+        type: OPEN_TAG_TOKEN,
+        value: '<'
+      }, {
+        type: IDENTIFIER_TOKEN,
+        value: 'div'
+      }, {
+        type: IDENTIFIER_TOKEN,
+        value: 'id'
+      }, {
+        type: EQUALS_TOKEN,
+        value: '='
+      }, {
+        type: ATTRIBUTE_VALUE_TOKEN,
+        value: 'hello',
+        quoteChar: '"'
+      }, {
+        type: CLOSE_TAG_TOKEN,
+        value: '>'
+      }]);
     });
 
     it('should tokenize single quoted string', () => {
       const tokens = tokenize`<div id='hello'>`;
       
-      const valueToken = tokens.find(t => t.type === ATTRIBUTE_VALUE_TOKEN);
-      expect(valueToken?.value).toBe('hello');
+      expect(tokens).toEqual([{
+        type: OPEN_TAG_TOKEN,
+        value: '<'
+      }, {
+        type: IDENTIFIER_TOKEN,
+        value: 'div'
+      }, {
+        type: IDENTIFIER_TOKEN,
+        value: 'id'
+      }, {
+        type: EQUALS_TOKEN,
+        value: '='
+      }, {
+        type: ATTRIBUTE_VALUE_TOKEN,
+        value: 'hello',
+        quoteChar: "'"
+      }, {
+        type: CLOSE_TAG_TOKEN,
+        value: '>'
+      }]);
     });
 
     it('should preserve spaces in quoted string', () => {
       const tokens = tokenize`<div class="hello world">`;
       
-      const valueToken = tokens.find(t => t.type === ATTRIBUTE_VALUE_TOKEN);
-      expect(valueToken?.value).toBe('hello world');
+      const classToken = tokens.find(t => t.type === ATTRIBUTE_VALUE_TOKEN);
+      expect(classToken?.value).toBe('hello world');
+      expect(classToken?.quoteChar).toBe('"');
     });
 
     it('should preserve special characters in quoted string', () => {
@@ -135,17 +228,19 @@ describe('tokenizer', () => {
       
       const valueToken = tokens.find(t => t.type === ATTRIBUTE_VALUE_TOKEN);
       expect(valueToken?.value).toBe('');
+      expect(valueToken?.quoteChar).toBe('"');
     });
   });
 
-  describe('expressions', () => {
+describe('expressions', () => {
     it('should tokenize simple expression', () => {
       const value = 'test';
       const tokens = tokenize`${value}`;
       
-      const exprToken = tokens.find(t => t.type === EXPRESSION_TOKEN);
-      expect(exprToken).toBeDefined();
-      expect(exprToken?.value).toBe(0);
+      expect(tokens).toEqual([{
+        type: EXPRESSION_TOKEN,
+        value: 0
+      }]);
     });
 
     it('should tokenize multiple expressions', () => {
@@ -153,29 +248,79 @@ describe('tokenizer', () => {
       const b = 'second';
       const tokens = tokenize`${a}${b}`;
       
-      const exprTokens = tokens.filter(t => t.type === EXPRESSION_TOKEN);
-      expect(exprTokens).toHaveLength(2);
-      expect(exprTokens[0].value).toBe(0);
-      expect(exprTokens[1].value).toBe(1);
+      expect(tokens).toEqual([{
+        type: EXPRESSION_TOKEN,
+        value: 0
+      }, {
+        type: EXPRESSION_TOKEN,
+        value: 1
+      }]);
     });
- 
-      
 
-    it('should handle expression in attribute', () => {
+    it('should handle expression in unquoted attribute', () => {
       const id = 'my-id';
       const tokens = tokenize`<div id=${id}>`;
       
-      const exprToken = tokens.find(t => t.type === EXPRESSION_TOKEN);
-      expect(exprToken).toBeDefined();
-      expect(exprToken?.value).toBe(0);
+      expect(tokens).toEqual([{
+        type: OPEN_TAG_TOKEN,
+        value: '<'
+      }, {
+        type: IDENTIFIER_TOKEN,
+        value: 'div'
+      }, {
+        type: IDENTIFIER_TOKEN,
+        value: 'id'
+      }, {
+        type: EQUALS_TOKEN,
+        value: '='
+      }, {
+        type: EXPRESSION_TOKEN,
+        value: 0
+      }, {
+        type: CLOSE_TAG_TOKEN,
+        value: '>'
+      }]);
     });
 
-    it('should mark expression in attribute context', () => {
+    it('should mark expression in quoted attribute context', () => {
       const id = 'my-id';
       const tokens = tokenize`<div id="${id}">`;
       
-      const exprToken = tokens.find(t => t.type === ATTRIBUTE_EXPRESSION_TOKEN);
-      expect(exprToken).toBeDefined();
+      expect(tokens).toEqual([{
+        type: OPEN_TAG_TOKEN,
+        value: '<'
+      }, {
+        type: IDENTIFIER_TOKEN,
+        value: 'div'
+      }, {
+        type: IDENTIFIER_TOKEN,
+        value: 'id'
+      }, {
+        type: EQUALS_TOKEN,
+        value: '=' 
+      }, {
+        type: ATTRIBUTE_EXPRESSION_TOKEN,
+        value: 0
+      },{
+        type: CLOSE_TAG_TOKEN,
+        value: '>'
+      }]);
+    });
+
+    it('should handle mixed text and expressions', () => {
+      const name = 'World';
+      const tokens = tokenize`Hello ${name}!`;
+      
+      expect(tokens).toEqual([{
+        type: TEXT_TOKEN,
+        value: 'Hello '
+      }, {
+        type: EXPRESSION_TOKEN,
+        value: 0
+      }, {
+        type: TEXT_TOKEN,
+        value: '!'
+      }]);
     });
   });
 
@@ -246,49 +391,123 @@ describe('tokenizer', () => {
     });
   });
 
-  describe('whitespace handling', () => {
-    it('should skip whitespace between tokens', () => {
+describe('whitespace handling', () => {
+    it('should skip whitespace between attribute tokens', () => {
       const tokens = tokenize`<div   id   =   "app">`;
       
-      const idToken = tokens.find(t => t.type === IDENTIFIER_TOKEN && t.value === 'id');
-      expect(idToken).toBeDefined();
+      // Should not have whitespace tokens in tag context
+      expect(tokens).toEqual([{
+        type: OPEN_TAG_TOKEN,
+        value: '<'
+      }, {
+        type: IDENTIFIER_TOKEN,
+        value: 'div'
+      }, {
+        type: IDENTIFIER_TOKEN,
+        value: 'id'
+      }, {
+        type: EQUALS_TOKEN,
+        value: '='
+      }, {
+        type: ATTRIBUTE_VALUE_TOKEN,
+        value: 'app',
+        quoteChar: '"'
+      }, {
+        type: CLOSE_TAG_TOKEN,
+        value: '>'
+      }]);
     });
 
-    it('should trim text content whitespace', () => {
+    it('should preserve text content whitespace', () => {
       const tokens = tokenize`  Hello World  `;
       
-      const textToken = tokens.find(t => t.type === TEXT_TOKEN);
-      expect(textToken?.value).toBe('Hello World');
+      expect(tokens).toEqual([{
+        type: TEXT_TOKEN,
+        value: '  Hello World  '
+      }]);
     });
 
-    it('should handle multiline content', () => {
+    it('should handle multiline content with preserved whitespace', () => {
       const tokens = tokenize`<div>
         Hello
       </div>`;
       
-      const textToken = tokens.find(t => t.type === TEXT_TOKEN);
-      expect(textToken?.value).toBe('Hello');
+      expect(tokens).toEqual([{
+        type: OPEN_TAG_TOKEN,
+        value: '<'
+      }, {
+        type: IDENTIFIER_TOKEN,
+        value: 'div'
+      }, {
+        type: CLOSE_TAG_TOKEN,
+        value: '>'
+      }, {
+        type: TEXT_TOKEN,
+        value: '\n        Hello\n      '
+      }, {
+        type: OPEN_TAG_TOKEN,
+        value: '<'
+      }, {
+        type: SLASH_TOKEN,
+        value: '/'
+      }, {
+        type: IDENTIFIER_TOKEN,
+        value: 'div'
+      }, {
+        type: CLOSE_TAG_TOKEN,
+        value: '>'
+      }]);
+    });
+
+    it('should handle tabs and mixed whitespace', () => {
+      const tokens = tokenize`\tHello\nWorld `;
+      
+      expect(tokens).toEqual([{
+        type: TEXT_TOKEN,
+        value: '\tHello\nWorld '
+      }]);
+    });
+
+    it('should handle whitespace around expressions', () => {
+      const name = 'test';
+      const tokens = tokenize`  ${name}  `;
+      
+      expect(tokens).toEqual([{
+        type: TEXT_TOKEN,
+        value: '  '
+      }, {
+        type: EXPRESSION_TOKEN,
+        value: 0
+      }, {
+        type: TEXT_TOKEN,
+        value: '  '
+      }]);
     });
   });
 
-  describe('edge cases', () => {
+describe('edge cases', () => {
     it('should handle empty template', () => {
       const tokens = tokenize``;
       
-      expect(Array.isArray(tokens)).toBe(true);
+      expect(tokens).toEqual([]);
     });
 
     it('should handle only whitespace', () => {
       const tokens = tokenize`   `;
       
-      expect(tokens.filter(t => t.type === TEXT_TOKEN)).toHaveLength(0);
+      expect(tokens).toEqual([{
+        type: TEXT_TOKEN,
+        value: '   '
+      }]);
     });
 
     it('should handle special characters in text', () => {
       const tokens = tokenize`Hello & goodbye`;
       
-      const textToken = tokens.find(t => t.type === TEXT_TOKEN);
-      expect(textToken?.value).toContain('&');
+      expect(tokens).toEqual([{
+        type: TEXT_TOKEN,
+        value: 'Hello & goodbye'
+      }]);
     });
 
     it('should handle consecutive expressions', () => {
@@ -296,73 +515,112 @@ describe('tokenizer', () => {
       const b = 'second';
       const tokens = tokenize`${a}${b}`;
       
-      const exprTokens = tokens.filter(t => t.type === EXPRESSION_TOKEN);
-      expect(exprTokens).toHaveLength(2);
+      expect(tokens).toEqual([{
+        type: EXPRESSION_TOKEN,
+        value: 0
+      }, {
+        type: EXPRESSION_TOKEN,
+        value: 1
+      }]);
     });
   });
 
-  describe('special characters in names', () => {
+describe('special characters in names', () => {
     it('should tokenize tag with hyphens', () => {
       const tokens = tokenize`<my-component />`;
       
-      const idToken = tokens.find(t => t.type === IDENTIFIER_TOKEN);
-      expect(idToken?.value).toBe('my-component');
+      expect(tokens).toEqual([{
+        type: OPEN_TAG_TOKEN,
+        value: '<'
+      }, {
+        type: IDENTIFIER_TOKEN,
+        value: 'my-component'
+      }, {
+        type: SLASH_TOKEN,
+        value: '/'
+      }, {
+        type: CLOSE_TAG_TOKEN,
+        value: '>'
+      }]);
     });
 
     it('should tokenize tag with periods', () => {
       const tokens = tokenize`<my.component />`;
       
-      const idToken = tokens.find(t => t.type === IDENTIFIER_TOKEN);
-      expect(idToken?.value).toBe('my.component');
+      expect(tokens).toEqual([{
+        type: OPEN_TAG_TOKEN,
+        value: '<'
+      }, {
+        type: IDENTIFIER_TOKEN,
+        value: 'my.component'
+      }, {
+        type: SLASH_TOKEN,
+        value: '/'
+      }, {
+        type: CLOSE_TAG_TOKEN,
+        value: '>'
+      }]);
     });
 
     it('should tokenize tag with colons', () => {
       const tokens = tokenize`<svg:rect />`;
       
-      const idToken = tokens.find(t => t.type === IDENTIFIER_TOKEN);
-      expect(idToken?.value).toBe('svg:rect');
+      expect(tokens).toEqual([{
+        type: OPEN_TAG_TOKEN,
+        value: '<'
+      }, {
+        type: IDENTIFIER_TOKEN,
+        value: 'svg:rect'
+      }, {
+        type: SLASH_TOKEN,
+        value: '/'
+      }, {
+        type: CLOSE_TAG_TOKEN,
+        value: '>'
+      }]);
     });
 
     it('should tokenize tag with underscores', () => {
       const tokens = tokenize`<my_component />`;
       
-      const idToken = tokens.find(t => t.type === IDENTIFIER_TOKEN);
-      expect(idToken?.value).toBe('my_component');
+      expect(tokens).toEqual([{
+        type: OPEN_TAG_TOKEN,
+        value: '<'
+      }, {
+        type: IDENTIFIER_TOKEN,
+        value: 'my_component'
+      }, {
+        type: SLASH_TOKEN,
+        value: '/'
+      }, {
+        type: CLOSE_TAG_TOKEN,
+        value: '>'
+      }]);
     });
 
     it('should tokenize attribute with hyphens', () => {
       const tokens = tokenize`<div data-id="value">`;
       
-      const attrToken = tokens.find((t, i) => t.type === IDENTIFIER_TOKEN && i > 1);
-      expect(attrToken?.value).toBe('data-id');
-    });
-
-    it('should tokenize attribute with periods', () => {
-      const tokens = tokenize`<div xml.namespace="value">`;
-      
-      const attrToken = tokens.find((t, i) => t.type === IDENTIFIER_TOKEN && i > 1);
-      expect(attrToken?.value).toBe('xml.namespace');
-    });
-
-    it('should tokenize attribute with colons', () => {
-      const tokens = tokenize`<svg svg:width="100">`;
-      
-      const attrToken = tokens.find((t, i) => t.type === IDENTIFIER_TOKEN && i > 1);
-      expect(attrToken?.value).toBe('svg:width');
-    });
-
-    it('should tokenize attribute with underscores', () => {
-      const tokens = tokenize`<div data_value="test">`;
-      
-      const attrToken = tokens.find((t, i) => t.type === IDENTIFIER_TOKEN && i > 1);
-      expect(attrToken?.value).toBe('data_value');
-    });
-
-    it('should tokenize complex names with multiple special characters', () => {
-      const tokens = tokenize`<my-custom.component:v2_test />`;
-      
-      const idToken = tokens.find(t => t.type === IDENTIFIER_TOKEN);
-      expect(idToken?.value).toBe('my-custom.component:v2_test');
+      expect(tokens).toEqual([{
+        type: OPEN_TAG_TOKEN,
+        value: '<'
+      }, {
+        type: IDENTIFIER_TOKEN,
+        value: 'div'
+      }, {
+        type: IDENTIFIER_TOKEN,
+        value: 'data-id'
+      }, {
+        type: EQUALS_TOKEN,
+        value: '='
+      }, {
+        type: ATTRIBUTE_VALUE_TOKEN,
+        value: 'value',
+        quoteChar: '"'
+      }, {
+        type: CLOSE_TAG_TOKEN,
+        value: '>'
+      }]);
     });
   });
 
