@@ -101,9 +101,7 @@ describe("Attributes", () => {
         {
           type: ELEMENT_NODE,
           name: "div",
-          props: [
-            { name: "id", type: STATIC_PROP, value: "app", quoteChar: '"' },
-          ],
+          props: [{ name: "id", type: STATIC_PROP, value: "app", quote: '"' }],
           children: [],
         },
       ],
@@ -157,7 +155,7 @@ describe("Attributes", () => {
     });
   });
 
-    it("single quoted expression attribute", () => {
+  it("single quoted expression attribute", () => {
     const id = "my-id";
     const ast = jsx`<div id='${id}'></div>`;
     expect(ast).toEqual({
@@ -187,7 +185,7 @@ describe("Attributes", () => {
               name: "class",
               type: MIXED_PROP,
               value: ["btn ", 0],
-              quoteChar: '"',
+              quote: '"',
             },
           ],
           children: [],
@@ -196,7 +194,7 @@ describe("Attributes", () => {
     });
   });
 
-    it("mixed attribute (string + expression)", () => {
+  it("mixed attribute (string + expression)", () => {
     const active = true;
     const ast = jsx`<div class="btn ${active ? "active" : ""}"></div>`;
     expect(ast).toEqual({
@@ -210,7 +208,7 @@ describe("Attributes", () => {
               name: "class",
               type: MIXED_PROP,
               value: ["btn ", 0],
-              quoteChar: '"',
+              quote: '"',
             },
           ],
           children: [],
@@ -233,7 +231,7 @@ describe("Attributes", () => {
               name: "class",
               type: MIXED_PROP,
               value: ["btn ", 0],
-              quoteChar: "'",
+              quote: "'",
             },
           ],
           children: [],
@@ -256,7 +254,7 @@ describe("Attributes", () => {
               name: "class",
               type: MIXED_PROP,
               value: [0, "  ", 1],
-              quoteChar: '"',
+              quote: '"',
             },
           ],
           children: [],
@@ -275,7 +273,7 @@ describe("Attributes", () => {
           type: ELEMENT_NODE,
           name: "input",
           props: [
-            { name: "type", type: STATIC_PROP, value: "text", quoteChar: '"' },
+            { name: "type", type: STATIC_PROP, value: "text", quote: '"' },
             { name: "value", type: EXPRESSION_PROP, value: 0 },
             { name: "disabled", type: BOOLEAN_PROP, value: true },
           ],
@@ -298,7 +296,6 @@ describe("whitespace handling", () => {
           name: "div",
           props: [],
           children: [{ type: TEXT_NODE, value: "   Hello   World   " }],
-
         },
         { type: TEXT_NODE, value: " !   " },
       ],
@@ -444,9 +441,7 @@ describe("Complex Examples", () => {
         {
           type: ELEMENT_NODE,
           name: "div",
-          props: [
-            { name: "id", type: STATIC_PROP, value: "root", quoteChar: '"' },
-          ],
+          props: [{ name: "id", type: STATIC_PROP, value: "root", quote: '"' }],
           children: [
             {
               type: ELEMENT_NODE,

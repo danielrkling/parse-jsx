@@ -7,18 +7,31 @@ export const ATTRIBUTE_VALUE_TOKEN = 5;
 export const TEXT_TOKEN = 6;
 export const EXPRESSION_TOKEN = 7;
 export const ATTRIBUTE_EXPRESSION_TOKEN = 8;
+export const QUOTE_CHAR_TOKEN = 9;
 
-export type TokenType = typeof OPEN_TAG_TOKEN | typeof CLOSE_TAG_TOKEN | typeof SLASH_TOKEN | typeof IDENTIFIER_TOKEN | typeof EQUALS_TOKEN | typeof ATTRIBUTE_VALUE_TOKEN | typeof TEXT_TOKEN | typeof EXPRESSION_TOKEN | typeof ATTRIBUTE_EXPRESSION_TOKEN;
+export type TokenType =
+  | typeof OPEN_TAG_TOKEN
+  | typeof CLOSE_TAG_TOKEN
+  | typeof SLASH_TOKEN
+  | typeof IDENTIFIER_TOKEN
+  | typeof EQUALS_TOKEN
+  | typeof ATTRIBUTE_VALUE_TOKEN
+  | typeof TEXT_TOKEN
+  | typeof EXPRESSION_TOKEN
+  | typeof ATTRIBUTE_EXPRESSION_TOKEN
+  | typeof QUOTE_CHAR_TOKEN;
 
 // Character code helpers for fast path testing (faster than regex)
 const isIdentifierChar = (code: number): boolean => {
-  return (code >= 48 && code <= 57) ||  // 0-9
-         (code >= 65 && code <= 90) ||  // A-Z
-         (code >= 97 && code <= 122) || // a-z
-         code === 46 ||   // .
-         code === 58 ||   // :
-         code === 95 ||   // _
-         code === 45;     // -
+  return (
+    (code >= 48 && code <= 57) || // 0-9
+    (code >= 65 && code <= 90) || // A-Z
+    (code >= 97 && code <= 122) || // a-z
+    code === 46 || // .
+    code === 58 || // :
+    code === 95 || // _
+    code === 45
+  ); // -
 };
 
 const isWhitespace = (code: number): boolean => {
@@ -27,17 +40,17 @@ const isWhitespace = (code: number): boolean => {
 
 export interface OpenTagToken {
   type: typeof OPEN_TAG_TOKEN;
-  value: string;
+  value: "<";
 }
 
 export interface CloseTagToken {
   type: typeof CLOSE_TAG_TOKEN;
-  value: string;
+  value: ">";
 }
 
 export interface SlashToken {
   type: typeof SLASH_TOKEN;
-  value: string;
+  value: "/";
 }
 
 export interface IdentifierToken {
@@ -47,13 +60,12 @@ export interface IdentifierToken {
 
 export interface EqualsToken {
   type: typeof EQUALS_TOKEN;
-  value: string;
+  value: "=";
 }
 
 export interface AttributeValueToken {
   type: typeof ATTRIBUTE_VALUE_TOKEN;
   value: string;
-  quoteChar?: string;
 }
 
 export interface TextToken {
@@ -71,7 +83,12 @@ export interface AttributeExpressionToken {
   value: number;
 }
 
-export type Token = 
+export interface QuoteCharToken {
+  type: typeof QUOTE_CHAR_TOKEN;
+  value: "'" | '"';
+}
+
+export type Token =
   | OpenTagToken
   | CloseTagToken
   | SlashToken
@@ -80,13 +97,14 @@ export type Token =
   | AttributeValueToken
   | TextToken
   | ExpressionToken
-  | AttributeExpressionToken;
+  | AttributeExpressionToken
+  | QuoteCharToken;
 
 class Tokenizer {
   tokens: Token[] = [];
   globalOffset = 0;
   inQuotes = false;
-  quoteChar: string | null = null;
+  quoteChar?: "'" | '"'
   tagDepth = 0;
   attrContext = false;
 
@@ -95,20 +113,19 @@ class Tokenizer {
 
     while (cursor < str.length) {
       const char = str[cursor];
-      const start = this.globalOffset + cursor;
 
       // 1. Check if this is a real tag opening: < followed by identifier or /
-      if (char === '<' && !this.inQuotes) {
+      if (char === "<" && !this.inQuotes) {
         const nextCode = str.charCodeAt(cursor + 1);
         const isOpenTag = nextCode > 0 && isIdentifierChar(nextCode); // <div, <Component, <my-component, <ns:tag
         const isCloseTag = nextCode === 47; // '/' = 47
-        
+
         if (isOpenTag || isCloseTag) {
           // Always increase tagDepth when entering a tag (whether opening or closing)
           this.tagDepth++;
-          this.tokens.push({ 
-            type: OPEN_TAG_TOKEN, 
-            value: char
+          this.tokens.push({
+            type: OPEN_TAG_TOKEN,
+            value: char,
           });
           cursor++;
           continue;
@@ -116,11 +133,11 @@ class Tokenizer {
       }
 
       // 2. Check if this is a real tag closing: > (only valid inside a tag)
-      if (char === '>' && !this.inQuotes && this.tagDepth > 0) {
+      if (char === ">" && !this.inQuotes && this.tagDepth > 0) {
         this.tagDepth--;
-        this.tokens.push({ 
-          type: CLOSE_TAG_TOKEN, 
-          value: char
+        this.tokens.push({
+          type: CLOSE_TAG_TOKEN,
+          value: char,
         });
         cursor++;
         continue;
@@ -129,7 +146,7 @@ class Tokenizer {
       // 3. Inside tag: handle quotes, identifiers, operators
       if (this.tagDepth > 0 && !this.inQuotes) {
         const code = str.charCodeAt(cursor);
-        
+
         // Skip whitespace
         if (isWhitespace(code)) {
           cursor++;
@@ -140,15 +157,27 @@ class Tokenizer {
         if (char === '"' || char === "'") {
           this.inQuotes = true;
           this.quoteChar = char;
+            this.tokens.push({
+            type: QUOTE_CHAR_TOKEN,
+            value: char,
+            });
           cursor++;
           continue;
         }
 
-        // Slash and equals operators
-        if (code === 47 || code === 61) { // '/' = 47, '=' = 61
-          this.tokens.push({ 
-            type: code === 47 ? SLASH_TOKEN : EQUALS_TOKEN, 
-            value: char
+        if (char === "/") {
+          this.tokens.push({
+            type:SLASH_TOKEN,
+            value: char,
+          });
+          cursor++;
+          continue;
+        }
+
+        if (char === "=") {
+          this.tokens.push({
+            type: EQUALS_TOKEN,
+            value: char,
           });
           cursor++;
           continue;
@@ -157,13 +186,16 @@ class Tokenizer {
         // Identifiers and attribute names
         if (isIdentifierChar(code)) {
           const startIdx = cursor;
-          while (cursor < str.length && isIdentifierChar(str.charCodeAt(cursor))) {
+          while (
+            cursor < str.length &&
+            isIdentifierChar(str.charCodeAt(cursor))
+          ) {
             cursor++;
           }
           const value = str.slice(startIdx, cursor);
-          this.tokens.push({ 
-            type: IDENTIFIER_TOKEN, 
-            value
+          this.tokens.push({
+            type: IDENTIFIER_TOKEN,
+            value,
           });
           continue;
         }
@@ -171,31 +203,34 @@ class Tokenizer {
 
       // 4. Inside quotes: capture ATTRIBUTE_VALUE
       if (this.inQuotes) {
-        let value = '';
+        let value = "";
         while (cursor < str.length && str[cursor] !== this.quoteChar) {
           value += str[cursor];
           cursor++;
         }
         if (value.length > 0) {
-            this.tokens.push({ 
-            type: ATTRIBUTE_VALUE_TOKEN, 
+          this.tokens.push({
+            type: ATTRIBUTE_VALUE_TOKEN,
             value,
-            quoteChar: this.quoteChar!
-            });
+          });
         }
 
         // Move past closing quote
         if (cursor < str.length && str[cursor] === this.quoteChar) {
+            this.tokens.push({
+            type: QUOTE_CHAR_TOKEN,
+            value: this.quoteChar!,
+          });
           this.inQuotes = false;
-          this.quoteChar = null;
+          this.quoteChar = undefined;
           cursor++;
         }
         continue;
       }
 
-// 5. Outside tags: accumulate text until we hit < or end of meaningful content
+      // 5. Outside tags: accumulate text until we hit < or end of meaningful content
       if (this.tagDepth === 0 && !this.inQuotes) {
-        const indexOfNextTag = str.indexOf('<', cursor);
+        const indexOfNextTag = str.indexOf("<", cursor);
         if (indexOfNextTag === cursor) {
           // We're at a tag, skip to next iteration
           cursor++;
@@ -203,9 +238,9 @@ class Tokenizer {
         } else if (indexOfNextTag > cursor) {
           // There's text before the next tag
           const textValue = str.slice(cursor, indexOfNextTag);
-          this.tokens.push({ 
-            type: TEXT_TOKEN, 
-            value: textValue
+          this.tokens.push({
+            type: TEXT_TOKEN,
+            value: textValue,
           });
           cursor = indexOfNextTag;
           continue;
@@ -213,9 +248,9 @@ class Tokenizer {
           // No more tags in this string, get all remaining text
           const textValue = str.slice(cursor);
           if (textValue.length > 0) {
-            this.tokens.push({ 
-              type: TEXT_TOKEN, 
-              value: textValue
+            this.tokens.push({
+              type: TEXT_TOKEN,
+              value: textValue,
             });
           }
           cursor = str.length;
@@ -232,15 +267,20 @@ class Tokenizer {
     // 7. Expressions between strings
     if (i < strLen - 1 && i < values.length) {
       this.tokens.push({
-        type: this.inQuotes ? ATTRIBUTE_EXPRESSION_TOKEN : EXPRESSION_TOKEN,
-        value: i
+        type:  EXPRESSION_TOKEN,
+        value: i,
       });
     }
   }
 }
 
-export function tokenize(strings: TemplateStringsArray, ...values: unknown[]): Token[] {
+export function tokenize(
+  strings: TemplateStringsArray,
+  ...values: unknown[]
+): Token[] {
   const tokenizer = new Tokenizer();
-  strings.forEach((str, i) => tokenizer.processString(str, i, strings.length, values));
+  strings.forEach((str, i) =>
+    tokenizer.processString(str, i, strings.length, values),
+  );
   return tokenizer.tokens;
 }
