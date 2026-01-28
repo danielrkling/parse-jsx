@@ -1,25 +1,16 @@
 import {
-  Token,
-  TokenType,
-  OPEN_TAG_TOKEN,
-  CLOSE_TAG_TOKEN,
-  SLASH_TOKEN,
-  IDENTIFIER_TOKEN,
-  EQUALS_TOKEN,
   ATTRIBUTE_VALUE_TOKEN,
-  TEXT_TOKEN,
+  CLOSE_TAG_TOKEN,
+  EQUALS_TOKEN,
   EXPRESSION_TOKEN,
-  ATTRIBUTE_EXPRESSION_TOKEN,
-  OpenTagToken,
-  CloseTagToken,
+  IDENTIFIER_TOKEN,
   IdentifierToken,
-  TextToken,
-  ExpressionToken,
-  AttributeValueToken,
-  SlashToken,
-  EqualsToken,
-  AttributeExpressionToken,
+  OPEN_TAG_TOKEN,
   QUOTE_CHAR_TOKEN,
+  SLASH_TOKEN,
+  TEXT_TOKEN,
+  Token,
+  TokenType
 } from "./tokenize";
 
 // Node type constants
@@ -108,226 +99,149 @@ export type PropNode =
   | SpreadProp
   | MixedProp;
 
-class Parser {
-  tokens: Token[];
-  pos = 0;
+export function parse(
+  tokens: Token[],
+  voidElements: Set<string>,
+): RootNode {
+  const root: RootNode = { type: ROOT_NODE, children: [] };
+  const stack: (RootNode | ElementNode)[] = [root];
+  let pos = 0;
+  const len = tokens.length;
 
-  constructor(tokens: Token[]) {
-    this.tokens = tokens;
-  }
+  while (pos < len) {
+    const token = tokens[pos];
+    const currentParent = stack[stack.length - 1];
 
-  peekToken(): Token | undefined {
-    return this.tokens[this.pos];
-  }
-
-  eatToken<T extends TokenType>(type: T): Extract<Token, { type: T }> {
-    const token = this.peekToken();
-    if (token && (!type || token.type === type)) {
-      this.pos++;
-      return token as Extract<Token, { type: T }>;
-    }
-    throw new Error(`Unexpected token: ${token?.type}, expected: ${type}`);
-  }
-
-  parseNode(): ElementNode | TextNode | ExpressionNode | null {
-    const token = this.peekToken();
-    if (!token) return null;
-
-    if (token.type === OPEN_TAG_TOKEN) {
-      if (this.tokens[this.pos + 1]?.type === SLASH_TOKEN) {
-        return null;
-      }
-      return this.parseElement();
-    }
-
+    // 1. TEXT PATH (with filtering)
     if (token.type === TEXT_TOKEN) {
-      const t = this.eatToken(TEXT_TOKEN);
-      const trimmedValue = t.value.trim();
-      if (
-        trimmedValue === "" &&
-        (this.tokens[this.pos - 2]?.type === CLOSE_TAG_TOKEN ||
-          this.tokens[this.pos]?.type === OPEN_TAG_TOKEN)
-      ) {
-        return null;
+      const val = token.value;
+      
+      // Optimization: Only trim if the string is small and looks like whitespace
+      // Most meaningful text nodes are longer or contain non-whitespace characters
+      let shouldPush = true;
+      if (val.length < 10) {
+        const trimmed = val.trim();
+        if (trimmed === "") {
+          const prev = tokens[pos - 1]?.type;
+          const next = tokens[pos + 1]?.type;
+          // Filter out if between two tags or at start/end of a tag
+          if (prev === CLOSE_TAG_TOKEN || prev === OPEN_TAG_TOKEN || next === OPEN_TAG_TOKEN) {
+            shouldPush = false;
+          }
+        }
       }
-      return {
-        type: TEXT_NODE,
-        value: t.value,
-      };
+
+      if (shouldPush) {
+        currentParent.children.push({ type: TEXT_NODE, value: val });
+      }
+      pos++;
+      continue;
     }
 
+    // 2. EXPRESSION PATH
     if (token.type === EXPRESSION_TOKEN) {
-      const e = this.eatToken(EXPRESSION_TOKEN);
-      return {
-        type: EXPRESSION_NODE,
-        value: e.value,
+      currentParent.children.push({ type: EXPRESSION_NODE, value: token.value });
+      pos++;
+      continue;
+    }
+
+    // 3. TAG PATH
+    if (token.type === OPEN_TAG_TOKEN) {
+      const next = tokens[pos + 1];
+
+      // Handle Closing Tag: </name>
+      if (next && next.type === SLASH_TOKEN) {
+        const nameToken = tokens[pos + 2];
+        // Ensure we only pop if the tag matches (prevents stack corruption)
+        if (nameToken && nameToken.type === IDENTIFIER_TOKEN) {
+          if (stack.length > 1 && (stack[stack.length - 1] as ElementNode).name === nameToken.value) {
+            stack.pop();
+          }
+        }
+        pos += 4; // skip <, /, name, >
+        continue;
+      }
+
+      // Handle Opening Tag: <name ...>
+      pos++; // consume <
+      const tagName = (tokens[pos++] as IdentifierToken).value;
+      const node: ElementNode = {
+        type: ELEMENT_NODE,
+        name: tagName,
+        props: [],
+        children: []
       };
-    }
 
-    this.pos++;
-    return null;
-  }
+      // Inline Prop Parsing Loop
+      while (pos < len) {
+        const t = tokens[pos];
+        if (t.type === CLOSE_TAG_TOKEN || t.type === SLASH_TOKEN) break;
 
-  parseElement(): ElementNode {
-    const startToken = this.eatToken(OPEN_TAG_TOKEN);
-    const nameToken = this.eatToken(IDENTIFIER_TOKEN);
-    const props = this.parseProps();
-
-    let children: (ElementNode | TextNode | ExpressionNode)[] = [];
-
-    if (this.peekToken()?.type === SLASH_TOKEN) {
-      this.eatToken(SLASH_TOKEN);
-      this.eatToken(CLOSE_TAG_TOKEN);
-    } else {
-      this.eatToken(CLOSE_TAG_TOKEN);
-
-      while (this.pos < this.tokens.length) {
-        if (
-          this.peekToken()?.type === OPEN_TAG_TOKEN &&
-          this.tokens[this.pos + 1]?.type === SLASH_TOKEN
-        ) {
-          break;
+        if (t.type === EXPRESSION_TOKEN) {
+          node.props.push({ type: SPREAD_PROP, value: t.value });
+          pos++;
+          continue;
         }
-        const child = this.parseNode();
-        if (child) children.push(child);
-      }
 
-      this.eatToken(OPEN_TAG_TOKEN);
-      this.eatToken(SLASH_TOKEN);
-      this.eatToken(IDENTIFIER_TOKEN);
-      this.eatToken(CLOSE_TAG_TOKEN);
-    }
+        if (t.type === IDENTIFIER_TOKEN) {
+          const pName = t.value;
+          pos++;
 
-    return {
-      type: ELEMENT_NODE,
-      name: nameToken.value,
-      props,
-      children,
-    };
-  }
+          if (tokens[pos]?.type === EQUALS_TOKEN) {
+            pos++; // consume =
+            const valToken = tokens[pos];
+            
+            if (valToken.type === EXPRESSION_TOKEN) {
+              node.props.push({ name: pName, type: EXPRESSION_PROP, value: valToken.value });
+              pos++;
+            } else if (valToken.type === QUOTE_CHAR_TOKEN) {
+              const q = valToken.value;
+              pos++; // consume opening quote
+              
+              let parts: (string | number)[] = [];
+              while (pos < len && tokens[pos].type !== QUOTE_CHAR_TOKEN) {
+                const part = tokens[pos++];
+                if (part.value !== "") parts.push(part.value as any);
+              }
+              pos++; // consume closing quote
 
-  parseProps(): PropNode[] {
-    const props: PropNode[] = [];
-
-    while (
-      this.pos < this.tokens.length &&
-      this.peekToken()?.type !== CLOSE_TAG_TOKEN &&
-      this.peekToken()?.type !== SLASH_TOKEN
-    ) {
-      // Check for spread property: <div ${...} />
-      if (this.peekToken()?.type === EXPRESSION_TOKEN) {
-        const exp = this.eatToken(EXPRESSION_TOKEN);
-        props.push({ type: SPREAD_PROP, value: exp.value });
-        continue;
-      }
-
-      const name = this.eatToken(IDENTIFIER_TOKEN).value;
-
-      if (this.peekToken()?.type !== EQUALS_TOKEN) {
-        props.push({ name, type: BOOLEAN_PROP, value: true });
-        continue;
-      }
-
-      this.eatToken(EQUALS_TOKEN);
-
-
-
-      // Collect all parts of the attribute value (may be expression, static text, or both)
-      const parts: Array<string | number> = [];
-      let hasAttributeValue = false;
-      let quoteChar: string | undefined;
-      const token = this.peekToken();
-
-        if (token && token.type === EXPRESSION_TOKEN) {
-        props.push({
-          name,
-          type: EXPRESSION_PROP,
-          value: this.eatToken(EXPRESSION_TOKEN).value,
-        });
-        continue;
-      }
-
-      const quoteToken = this.eatToken(QUOTE_CHAR_TOKEN);
-
-      while (
-        this.pos < this.tokens.length &&
-        (this.peekToken()?.type === ATTRIBUTE_VALUE_TOKEN ||
-          this.peekToken()?.type === EXPRESSION_TOKEN)
-      ) {
-
-
-        const part = this.peekToken();
-        if (
-          part &&
-          (part.type === ATTRIBUTE_VALUE_TOKEN ||
-            part.type === EXPRESSION_TOKEN)
-        ) {
-          const exp =
-            part.type === ATTRIBUTE_VALUE_TOKEN
-              ? this.eatToken(ATTRIBUTE_VALUE_TOKEN)
-              : this.eatToken(EXPRESSION_TOKEN);
-          parts.push(exp.value);
-        } else {
-          this.pos++;
+              if (parts.length === 0) {
+                node.props.push({ name: pName, type: STATIC_PROP, value: "", quote: q });
+              } else if (parts.length === 1) {
+                const v = parts[0];
+                node.props.push({ 
+                  name: pName, 
+                  type: typeof v === 'string' ? STATIC_PROP : EXPRESSION_PROP, 
+                  value: v as any, 
+                  quote: q 
+                });
+              } else {
+                node.props.push({ name: pName, type: MIXED_PROP, value: parts, quote: q });
+              }
+            }
+          } else {
+            node.props.push({ name: pName, type: BOOLEAN_PROP, value: true });
+          }
+          continue;
         }
+        pos++;
       }
 
-      const closingQuoteToken = this.eatToken(QUOTE_CHAR_TOKEN);
+      currentParent.children.push(node);
 
-      // Filter out empty static parts (artifacts from closing quotes in templates)
-      const meaningfulParts = parts.filter((p) => p !== "");
-
-      // Determine prop type based on what we collected
-      if (meaningfulParts.length === 0) {
-        // No meaningful value (all empty)
-        props.push({ name, type: STATIC_PROP, value: "" });
-      } else if (
-        meaningfulParts.length === 1 &&
-        typeof meaningfulParts[0] === "string"
-      ) {
-        // Single static value
-        props.push({
-          name,
-          type: STATIC_PROP,
-          value: meaningfulParts[0],
-          quote: quoteToken.value,
-        });
-      } else if (
-        meaningfulParts.length === 1 &&
-        typeof meaningfulParts[0] === "number"
-      ) {
-        // Single expression value
-        props.push({
-          name,
-          type: EXPRESSION_PROP,
-          value: meaningfulParts[0],
-        });
+      // Handle Self-Closing/Void Logic
+      if (tokens[pos]?.type === SLASH_TOKEN) {
+        pos += 2; // skip / and >
+      } else if (voidElements.has(tagName)) {
+        pos++; // skip >
       } else {
-        // Mixed: multiple parts with expressions and/or static text
-        props.push({
-          name,
-          type: MIXED_PROP,
-          value: meaningfulParts,
-          quote: quoteToken.value,
-        });
+        pos++; // skip >
+        stack.push(node); // Move context into this element
       }
+      continue;
     }
 
-    return props;
-  }
-}
-
-export function parse(tokens: Token[]): RootNode {
-  const parser = new Parser(tokens);
-
-  const root: RootNode = {
-    type: ROOT_NODE,
-    children: [],
-  };
-
-  while (parser.pos < parser.tokens.length) {
-    const node = parser.parseNode();
-    if (node) root.children.push(node);
+    pos++;
   }
 
   return root;

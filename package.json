@@ -14,7 +14,7 @@
     }
   },
   "scripts": {
-    "build": "tsdown src/index.ts -o dist/index.js && tsdown src/index.ts --format esm -o dist/index.esm.js && tsdown src/index.ts --format esm -o dist/index.esm.min.js --minify",
+    "build": "tsdown src-new/index.ts --format esm --minify",
     "dev": "tsc --watch",
     "test": "vitest",
     "test:coverage": "vitest --coverage",
@@ -32,7 +32,7 @@
   "devDependencies": {
     "@types/node": "^20.10.6",
     "@vitest/coverage-v8": "^1.1.0",
-    "html5parser": "*",
+    "html5parser": "^2.0.2",
     "typescript": "^5.3.3",
     "vitest": "^1.1.0"
   },

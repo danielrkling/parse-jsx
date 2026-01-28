@@ -10,7 +10,7 @@ import {
   EXPRESSION_PROP,
   SPREAD_PROP,
   jsx,
-} from "../src/index";
+} from "../src-new/index";
 
 describe("Simple AST", () => {
   it("simple element", () => {
@@ -148,7 +148,7 @@ describe("Attributes", () => {
         {
           type: ELEMENT_NODE,
           name: "div",
-          props: [{ name: "id", type: EXPRESSION_PROP, value: 0 }],
+          props: [{ name: "id", type: EXPRESSION_PROP, value: 0, quote: '"' }],
           children: [],
         },
       ],
@@ -164,7 +164,7 @@ describe("Attributes", () => {
         {
           type: ELEMENT_NODE,
           name: "div",
-          props: [{ name: "id", type: EXPRESSION_PROP, value: 0 }],
+          props: [{ name: "id", type: EXPRESSION_PROP, value: 0, quote: "'" }],
           children: [],
         },
       ],
