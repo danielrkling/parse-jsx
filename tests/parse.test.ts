@@ -10,7 +10,7 @@ import {
   EXPRESSION_PROP,
   SPREAD_PROP,
   jsx,
-} from "../src-new/index";
+} from "../src/index";
 
 describe("Simple AST", () => {
   it("simple element", () => {

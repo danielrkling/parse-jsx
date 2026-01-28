@@ -6,8 +6,7 @@ export const EQUALS_TOKEN = 4;
 export const ATTRIBUTE_VALUE_TOKEN = 5;
 export const TEXT_TOKEN = 6;
 export const EXPRESSION_TOKEN = 7;
-export const ATTRIBUTE_EXPRESSION_TOKEN = 8;
-export const QUOTE_CHAR_TOKEN = 9;
+export const QUOTE_CHAR_TOKEN = 8;
 
 export type TokenType =
   | typeof OPEN_TAG_TOKEN
@@ -18,7 +17,6 @@ export type TokenType =
   | typeof ATTRIBUTE_VALUE_TOKEN
   | typeof TEXT_TOKEN
   | typeof EXPRESSION_TOKEN
-  | typeof ATTRIBUTE_EXPRESSION_TOKEN
   | typeof QUOTE_CHAR_TOKEN;
 
 // Character code helpers for fast path testing (faster than regex)
@@ -78,10 +76,6 @@ export interface ExpressionToken {
   value: number;
 }
 
-export interface AttributeExpressionToken {
-  type: typeof ATTRIBUTE_EXPRESSION_TOKEN;
-  value: number;
-}
 
 export interface QuoteCharToken {
   type: typeof QUOTE_CHAR_TOKEN;
@@ -97,190 +91,129 @@ export type Token =
   | AttributeValueToken
   | TextToken
   | ExpressionToken
-  | AttributeExpressionToken
   | QuoteCharToken;
 
-class Tokenizer {
-  tokens: Token[] = [];
-  globalOffset = 0;
-  inQuotes = false;
-  quoteChar?: "'" | '"'
-  tagDepth = 0;
-  attrContext = false;
 
-  processString(str: string, i: number, strLen: number, values: unknown[]) {
-    let cursor = 0;
 
-    while (cursor < str.length) {
-      const char = str[cursor];
-
-      // 1. Check if this is a real tag opening: < followed by identifier or /
-      if (char === "<" && !this.inQuotes) {
-        const nextCode = str.charCodeAt(cursor + 1);
-        const isOpenTag = nextCode > 0 && isIdentifierChar(nextCode); // <div, <Component, <my-component, <ns:tag
-        const isCloseTag = nextCode === 47; // '/' = 47
-
-        if (isOpenTag || isCloseTag) {
-          // Always increase tagDepth when entering a tag (whether opening or closing)
-          this.tagDepth++;
-          this.tokens.push({
-            type: OPEN_TAG_TOKEN,
-            value: char,
-          });
-          cursor++;
-          continue;
-        }
-      }
-
-      // 2. Check if this is a real tag closing: > (only valid inside a tag)
-      if (char === ">" && !this.inQuotes && this.tagDepth > 0) {
-        this.tagDepth--;
-        this.tokens.push({
-          type: CLOSE_TAG_TOKEN,
-          value: char,
-        });
-        cursor++;
-        continue;
-      }
-
-      // 3. Inside tag: handle quotes, identifiers, operators
-      if (this.tagDepth > 0 && !this.inQuotes) {
-        const code = str.charCodeAt(cursor);
-
-        // Skip whitespace
-        if (isWhitespace(code)) {
-          cursor++;
-          continue;
-        }
-
-        // Opening quote
-        if (char === '"' || char === "'") {
-          this.inQuotes = true;
-          this.quoteChar = char;
-            this.tokens.push({
-            type: QUOTE_CHAR_TOKEN,
-            value: char,
-            });
-          cursor++;
-          continue;
-        }
-
-        if (char === "/") {
-          this.tokens.push({
-            type:SLASH_TOKEN,
-            value: char,
-          });
-          cursor++;
-          continue;
-        }
-
-        if (char === "=") {
-          this.tokens.push({
-            type: EQUALS_TOKEN,
-            value: char,
-          });
-          cursor++;
-          continue;
-        }
-
-        // Identifiers and attribute names
-        if (isIdentifierChar(code)) {
-          const startIdx = cursor;
-          while (
-            cursor < str.length &&
-            isIdentifierChar(str.charCodeAt(cursor))
-          ) {
-            cursor++;
-          }
-          const value = str.slice(startIdx, cursor);
-          this.tokens.push({
-            type: IDENTIFIER_TOKEN,
-            value,
-          });
-          continue;
-        }
-      }
-
-      // 4. Inside quotes: capture ATTRIBUTE_VALUE
-      if (this.inQuotes) {
-        let value = "";
-        while (cursor < str.length && str[cursor] !== this.quoteChar) {
-          value += str[cursor];
-          cursor++;
-        }
-        if (value.length > 0) {
-          this.tokens.push({
-            type: ATTRIBUTE_VALUE_TOKEN,
-            value,
-          });
-        }
-
-        // Move past closing quote
-        if (cursor < str.length && str[cursor] === this.quoteChar) {
-            this.tokens.push({
-            type: QUOTE_CHAR_TOKEN,
-            value: this.quoteChar!,
-          });
-          this.inQuotes = false;
-          this.quoteChar = undefined;
-          cursor++;
-        }
-        continue;
-      }
-
-      // 5. Outside tags: accumulate text until we hit < or end of meaningful content
-      if (this.tagDepth === 0 && !this.inQuotes) {
-        const indexOfNextTag = str.indexOf("<", cursor);
-        if (indexOfNextTag === cursor) {
-          // We're at a tag, skip to next iteration
-          cursor++;
-          continue;
-        } else if (indexOfNextTag > cursor) {
-          // There's text before the next tag
-          const textValue = str.slice(cursor, indexOfNextTag);
-          this.tokens.push({
-            type: TEXT_TOKEN,
-            value: textValue,
-          });
-          cursor = indexOfNextTag;
-          continue;
-        } else {
-          // No more tags in this string, get all remaining text
-          const textValue = str.slice(cursor);
-          if (textValue.length > 0) {
-            this.tokens.push({
-              type: TEXT_TOKEN,
-              value: textValue,
-            });
-          }
-          cursor = str.length;
-          continue;
-        }
-      }
-
-      // 6. Fallback: skip unknown character
-      cursor++;
-    }
-
-    this.globalOffset += str.length;
-
-    // 7. Expressions between strings
-    if (i < strLen - 1 && i < values.length) {
-      this.tokens.push({
-        type:  EXPRESSION_TOKEN,
-        value: i,
-      });
-    }
-  }
-}
+// Add a new state for elements that contain raw text only
+const STATE_TEXT = 0;
+const STATE_TAG = 1;
+const STATE_ATTR_VALUE = 2;
+const STATE_RAW_TEXT = 3;
 
 export function tokenize(
-  strings: TemplateStringsArray,
-  ...values: unknown[]
+  strings: TemplateStringsArray | string[],
+  rawTextElements: Set<string>,
 ): Token[] {
-  const tokenizer = new Tokenizer();
-  strings.forEach((str, i) =>
-    tokenizer.processString(str, i, strings.length, values),
-  );
-  return tokenizer.tokens;
+  const tokens: Token[] = [];
+  let state = STATE_TEXT;
+  let quoteChar: '"' | "'" | "" = "";
+  let lastTagName = ""; 
+  let cursor = 0;
+
+  for (let i = 0; i < strings.length; i++) {
+    const str = strings[i];
+    const len = str.length;
+    cursor = 0;
+
+    while (cursor < len) {
+      if (state === STATE_TEXT) {
+        const nextTag = str.indexOf("<", cursor);
+        if (nextTag === -1) {
+          if (cursor < len) tokens.push({ type: TEXT_TOKEN, value: str.slice(cursor) });
+          cursor = len;
+        } else {
+          if (nextTag > cursor) tokens.push({ type: TEXT_TOKEN, value: str.slice(cursor, nextTag) });
+          
+          const nextCode = str.charCodeAt(nextTag + 1);
+          // Case-sensitive identifier check remains the same
+          if (nextCode === 47 || isIdentifierChar(nextCode)) {
+            tokens.push({ type: OPEN_TAG_TOKEN, value: "<" });
+            state = STATE_TAG;
+            cursor = nextTag + 1;
+          } else {
+            tokens.push({ type: TEXT_TOKEN, value: "<" });
+            cursor = nextTag + 1;
+          }
+        }
+      } 
+      
+      else if (state === STATE_TAG) {
+        const char = str[cursor];
+        const code = str.charCodeAt(cursor);
+
+        if (isWhitespace(code)) {
+          cursor++;
+        } else if (char === ">") {
+          tokens.push({ type: CLOSE_TAG_TOKEN, value: ">" });
+          
+          // Case-sensitive lookup
+          if (rawTextElements.has(lastTagName)) {
+            state = STATE_RAW_TEXT;
+          } else {
+            state = STATE_TEXT;
+          }
+          cursor++;
+        } else if (char === "=") {
+          tokens.push({ type: EQUALS_TOKEN, value: char });
+          cursor++;
+        } else if (char === "/") {
+          tokens.push({ type: SLASH_TOKEN, value: char });
+          cursor++;
+        } else if (char === '"' || char === "'") {
+          tokens.push({ type: QUOTE_CHAR_TOKEN, value: char });
+          quoteChar = char;
+          state = STATE_ATTR_VALUE;
+          cursor++;
+        } else if (isIdentifierChar(code)) {
+          const start = cursor;
+          while (cursor < len && isIdentifierChar(str.charCodeAt(cursor))) cursor++;
+          // Capture tag name exactly as it appears
+          lastTagName = str.slice(start, cursor);
+          tokens.push({ type: IDENTIFIER_TOKEN, value: lastTagName });
+        } else {
+          cursor++;
+        }
+      } 
+      
+      else if (state === STATE_ATTR_VALUE) {
+        const endQuoteIndex = str.indexOf(quoteChar, cursor);
+        if (endQuoteIndex === -1) {
+          tokens.push({ type: ATTRIBUTE_VALUE_TOKEN, value: str.slice(cursor) });
+          cursor = len;
+        } else {
+          if (endQuoteIndex > cursor) {
+            tokens.push({ type: ATTRIBUTE_VALUE_TOKEN, value: str.slice(cursor, endQuoteIndex) });
+          }
+          tokens.push({ type: QUOTE_CHAR_TOKEN, value: quoteChar as any });
+          state = STATE_TAG;
+          quoteChar = "";
+          cursor = endQuoteIndex + 1;
+        }
+      }
+
+      else if (state === STATE_RAW_TEXT) {
+        // Case-sensitive search for the specific closing tag
+        const closeTagStr = `</${lastTagName}>`;
+        const endOfRawIdx = str.indexOf(closeTagStr, cursor);
+
+        if (endOfRawIdx === -1) {
+          tokens.push({ type: TEXT_TOKEN, value: str.slice(cursor) });
+          cursor = len;
+        } else {
+          if (endOfRawIdx > cursor) {
+            tokens.push({ type: TEXT_TOKEN, value: str.slice(cursor, endOfRawIdx) });
+          }
+          state = STATE_TEXT;
+          cursor = endOfRawIdx; 
+        }
+      }
+    }
+
+    if (i < strings.length - 1) {
+      tokens.push({ type: EXPRESSION_TOKEN, value: i });
+    }
+  }
+
+  return tokens;
 }

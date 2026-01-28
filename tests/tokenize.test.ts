@@ -10,8 +10,8 @@ import {
   TEXT_TOKEN,
   EXPRESSION_TOKEN,
   QUOTE_CHAR_TOKEN,
-} from "../src-new/tokenize";
-import { rawTextElements } from "../src-new";
+} from "../src/tokenize";
+import { rawTextElements } from "../src";
 
 function tokenizeTemplate( strings: TemplateStringsArray, ...values: any[]) { 
   return tokenize(strings, rawTextElements);

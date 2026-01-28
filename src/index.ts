@@ -1,6 +1,30 @@
 import { tokenize } from './tokenize';
 import { parse, RootNode } from './parse';
 
+export const voidElements = new Set([
+  'area',
+  'base',
+  'br',
+  'col',
+  'embed',
+  'hr',
+  'img',
+  'input',
+  'link',
+  'meta',
+  'param',
+  'source',
+  'track',
+  'wbr',
+]);
+
+export const rawTextElements = new Set([
+  'script',
+  'style',
+  'textarea',
+  'title',
+]);
+
 /**
  * Parse JSX from a template literal
  * @param strings - Template literal string parts
@@ -13,8 +37,8 @@ import { parse, RootNode } from './parse';
  * ```
  */
 export function jsx(strings: TemplateStringsArray, ...values: unknown[]): RootNode {
-  const tokens = tokenize(strings, ...values);
-  return parse(tokens);
+  const tokens = tokenize(strings, rawTextElements);
+  return parse(tokens, voidElements);
 }
 
 // Export types and utilities
