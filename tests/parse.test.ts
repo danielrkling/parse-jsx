@@ -506,3 +506,94 @@ describe("Complex Examples", () => {
     });
   });
 });
+
+
+describe("Specialized Element AST", () => {
+  it("void elements: img and br siblings", () => {
+    // Note: br is void, img is void. They should be siblings, not nested.
+    const ast = jsx`<div><br><img src="test.png"></div>`;
+
+    expect(ast).toEqual({
+      type: ROOT_NODE,
+      children: [
+        {
+          type: ELEMENT_NODE,
+          name: "div",
+          props: [],
+          children: [
+            {
+              type: ELEMENT_NODE,
+              name: "br",
+              props: [],
+              children: [],
+            },
+            {
+              type: ELEMENT_NODE,
+              name: "img",
+              props: [
+                {
+                  name: "src",
+                  type: STATIC_PROP,
+                  value: "test.png",
+                  quote: '"',
+                },
+              ],
+              children: [],
+            },
+          ],
+        },
+      ],
+    });
+  });
+
+  it("raw text elements: textarea ignoring content", () => {
+    // The content inside <textarea> is treated as a single TEXT_NODE
+    const ast = jsx`<textarea><div class="fake">Content</div></textarea>`;
+
+    expect(ast).toEqual({
+      type: ROOT_NODE,
+      children: [
+        {
+          type: ELEMENT_NODE,
+          name: "textarea",
+          props: [],
+          children: [
+            {
+              type: TEXT_NODE,
+              value: '<div class="fake">Content</div>',
+            },
+          ],
+        },
+      ],
+    });
+  });
+
+  it("complex mixed props in void elements", () => {
+    const theme = "dark";
+    const ast = jsx`<input class="btn ${theme}" disabled />`;
+
+    expect(ast).toEqual({
+      type: ROOT_NODE,
+      children: [
+        {
+          type: ELEMENT_NODE,
+          name: "input",
+          props: [
+            {
+              name: "class",
+              type: MIXED_PROP,
+              value: ["btn ", 0], // 0 is index of 'theme' in expressions
+              quote: '"',
+            },
+            {
+              name: "disabled",
+              type: BOOLEAN_PROP,
+              value: true,
+            },
+          ],
+          children: [], // Input is self-closing/void
+        },
+      ],
+    });
+  });
+});
