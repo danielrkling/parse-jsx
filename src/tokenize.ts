@@ -7,29 +7,25 @@ export const ATTRIBUTE_VALUE_TOKEN = 5;
 export const TEXT_TOKEN = 6;
 export const EXPRESSION_TOKEN = 7;
 export const QUOTE_CHAR_TOKEN = 8;
-
-export type TokenType =
-  | typeof OPEN_TAG_TOKEN
-  | typeof CLOSE_TAG_TOKEN
-  | typeof SLASH_TOKEN
-  | typeof IDENTIFIER_TOKEN
-  | typeof EQUALS_TOKEN
-  | typeof ATTRIBUTE_VALUE_TOKEN
-  | typeof TEXT_TOKEN
-  | typeof EXPRESSION_TOKEN
-  | typeof QUOTE_CHAR_TOKEN;
+export const SPREAD_TOKEN = 9;
 
 // Character code helpers for fast path testing (faster than regex)
 const isIdentifierChar = (code: number): boolean => {
   return (
-    (code >= 48 && code <= 57) || // 0-9
-    (code >= 65 && code <= 90) || // A-Z
-    (code >= 97 && code <= 122) || // a-z
+    isIdentifierStart(code) ||
+    (code >= 48 && code <= 58) || // 0-9, :
     code === 46 || // .
-    code === 58 || // :
-    code === 95 || // _
     code === 45
   ); // -
+};
+
+const isIdentifierStart = (code: number): boolean => {
+  return (
+    (code >= 65 && code <= 90) || // A-Z
+    (code >= 97 && code <= 122) || // a-z
+    code === 95 || // _
+    code === 36 // $
+  );
 };
 
 const isWhitespace = (code: number): boolean => {
@@ -38,48 +34,72 @@ const isWhitespace = (code: number): boolean => {
 
 export interface OpenTagToken {
   type: typeof OPEN_TAG_TOKEN;
-  value: "<";
+  start: number;
+  end: number;
+  // value: "<";
 }
 
 export interface CloseTagToken {
   type: typeof CLOSE_TAG_TOKEN;
-  value: ">";
+  start: number;
+  end: number;
+  // value: ">";
 }
 
 export interface SlashToken {
   type: typeof SLASH_TOKEN;
-  value: "/";
+  start: number;
+  end: number;
+  // value: "/";
 }
 
 export interface IdentifierToken {
   type: typeof IDENTIFIER_TOKEN;
   value: string;
+  start: number;
+  end: number;
 }
 
 export interface EqualsToken {
   type: typeof EQUALS_TOKEN;
-  value: "=";
+  start: number;
+  end: number;
+  // value: "=";
 }
 
-export interface AttributeValueToken {
+export interface AttributeToken {
   type: typeof ATTRIBUTE_VALUE_TOKEN;
   value: string;
+  start: number;
+  end: number;
 }
 
 export interface TextToken {
   type: typeof TEXT_TOKEN;
   value: string;
+  start: number;
+  end: number;
 }
 
 export interface ExpressionToken {
   type: typeof EXPRESSION_TOKEN;
   value: number;
+  start: number;
+  end: number;
 }
 
-
-export interface QuoteCharToken {
+export interface QuoteToken {
   type: typeof QUOTE_CHAR_TOKEN;
   value: "'" | '"';
+  start: number;
+  end: number;
+}
+
+export interface SpreadToken {
+  type: typeof SPREAD_TOKEN;
+  start: number;
+  end: number;
+  // value: "...";
 }
 
 export type Token =
@@ -88,132 +108,188 @@ export type Token =
   | SlashToken
   | IdentifierToken
   | EqualsToken
-  | AttributeValueToken
+  | AttributeToken
   | TextToken
   | ExpressionToken
-  | QuoteCharToken;
-
-
+  | QuoteToken
+  | SpreadToken;
 
 // Add a new state for elements that contain raw text only
 const STATE_TEXT = 0;
 const STATE_TAG = 1;
 const STATE_ATTR_VALUE = 2;
-const STATE_RAW_TEXT = 3;
+const STATE_COMMENT = 4;
 
-export function tokenize(
+export const tokenize = (
   strings: TemplateStringsArray | string[],
-  rawTextElements: Set<string>,
-): Token[] {
+  expressionLengths?: number[],
+): Token[] => {
   const tokens: Token[] = [];
   let state = STATE_TEXT;
   let quoteChar: '"' | "'" | "" = "";
-  let lastTagName = ""; 
-  let cursor = 0;
+  let lastTagName = "";
+  let globalPosition = 0;
 
   for (let i = 0; i < strings.length; i++) {
     const str = strings[i];
     const len = str.length;
-    cursor = 0;
+    let cursor = 0;
 
     while (cursor < len) {
-      if (state === STATE_TEXT) {
-        const nextTag = str.indexOf("<", cursor);
-        if (nextTag === -1) {
-          if (cursor < len) tokens.push({ type: TEXT_TOKEN, value: str.slice(cursor) });
-          cursor = len;
-        } else {
-          if (nextTag > cursor) tokens.push({ type: TEXT_TOKEN, value: str.slice(cursor, nextTag) });
-          
-          const nextCode = str.charCodeAt(nextTag + 1);
-          // Case-sensitive identifier check remains the same
-          if (nextCode === 47 || isIdentifierChar(nextCode)) {
-            tokens.push({ type: OPEN_TAG_TOKEN, value: "<" });
-            state = STATE_TAG;
-            cursor = nextTag + 1;
+      switch (state) {
+        case STATE_TEXT: {
+          lastTagName = "";
+          const nextTag = str.indexOf("<", cursor);
+          if (nextTag === -1) {
+            if (cursor < len) {
+              const tokenStart = globalPosition + cursor;
+              const tokenEnd = globalPosition + len;
+              tokens.push({ type: TEXT_TOKEN, value: str.slice(cursor), start: tokenStart, end: tokenEnd });
+            }
+            cursor = len;
           } else {
-            tokens.push({ type: TEXT_TOKEN, value: "<" });
-            cursor = nextTag + 1;
-          }
-        }
-      } 
-      
-      else if (state === STATE_TAG) {
-        const char = str[cursor];
-        const code = str.charCodeAt(cursor);
+            if (nextTag > cursor) {
+              const tokenStart = globalPosition + cursor;
+              const tokenEnd = globalPosition + nextTag;
+              tokens.push({
+                type: TEXT_TOKEN,
+                value: str.slice(cursor, nextTag),
+                start: tokenStart,
+                end: tokenEnd,
+              });
+            }
 
-        if (isWhitespace(code)) {
-          cursor++;
-        } else if (char === ">") {
-          tokens.push({ type: CLOSE_TAG_TOKEN, value: ">" });
-          
-          // Case-sensitive lookup
-          if (rawTextElements.has(lastTagName)) {
-            state = STATE_RAW_TEXT;
-          } else {
+            if (str[nextTag + 1] === "!" && str[nextTag + 2] === "-" && str[nextTag + 3] === "-") {
+              state = STATE_COMMENT;
+              cursor = nextTag + 4;
+            } else {
+              const tokenStart = globalPosition + nextTag;
+              const tokenEnd = globalPosition + nextTag + 1;
+              tokens.push({ type: OPEN_TAG_TOKEN, start: tokenStart, end: tokenEnd });
+              state = STATE_TAG;
+              cursor = nextTag + 1;
+            }
+          }
+          break;
+        }
+        case STATE_TAG: {
+          const code = str.charCodeAt(cursor);
+
+          if (isWhitespace(code)) {
+            cursor++;
+          } else if (code === 62) {
+            // ">"
             state = STATE_TEXT;
-          }
-          cursor++;
-        } else if (char === "=") {
-          tokens.push({ type: EQUALS_TOKEN, value: char });
-          cursor++;
-        } else if (char === "/") {
-          tokens.push({ type: SLASH_TOKEN, value: char });
-          cursor++;
-        } else if (char === '"' || char === "'") {
-          tokens.push({ type: QUOTE_CHAR_TOKEN, value: char });
-          quoteChar = char;
-          state = STATE_ATTR_VALUE;
-          cursor++;
-        } else if (isIdentifierChar(code)) {
-          const start = cursor;
-          while (cursor < len && isIdentifierChar(str.charCodeAt(cursor))) cursor++;
-          // Capture tag name exactly as it appears
-          lastTagName = str.slice(start, cursor);
-          tokens.push({ type: IDENTIFIER_TOKEN, value: lastTagName });
-        } else {
-          cursor++;
-        }
-      } 
-      
-      else if (state === STATE_ATTR_VALUE) {
-        const endQuoteIndex = str.indexOf(quoteChar, cursor);
-        if (endQuoteIndex === -1) {
-          tokens.push({ type: ATTRIBUTE_VALUE_TOKEN, value: str.slice(cursor) });
-          cursor = len;
-        } else {
-          if (endQuoteIndex > cursor) {
-            tokens.push({ type: ATTRIBUTE_VALUE_TOKEN, value: str.slice(cursor, endQuoteIndex) });
-          }
-          tokens.push({ type: QUOTE_CHAR_TOKEN, value: quoteChar as any });
-          state = STATE_TAG;
-          quoteChar = "";
-          cursor = endQuoteIndex + 1;
-        }
-      }
+            lastTagName = "";
+            const tokenStart = globalPosition + cursor;
+            const tokenEnd = globalPosition + cursor + 1;
+            tokens.push({ type: CLOSE_TAG_TOKEN, start: tokenStart, end: tokenEnd });
 
-      else if (state === STATE_RAW_TEXT) {
-        // Case-sensitive search for the specific closing tag
-        const closeTagStr = `</${lastTagName}>`;
-        const endOfRawIdx = str.indexOf(closeTagStr, cursor);
-
-        if (endOfRawIdx === -1) {
-          tokens.push({ type: TEXT_TOKEN, value: str.slice(cursor) });
-          cursor = len;
-        } else {
-          if (endOfRawIdx > cursor) {
-            tokens.push({ type: TEXT_TOKEN, value: str.slice(cursor, endOfRawIdx) });
+            cursor++;
+          } else if (code === 61) {
+            // "="
+            const tokenStart = globalPosition + cursor;
+            const tokenEnd = globalPosition + cursor + 1;
+            tokens.push({ type: EQUALS_TOKEN, start: tokenStart, end: tokenEnd });
+            cursor++;
+          } else if (code === 47) {
+            // "/"
+            const tokenStart = globalPosition + cursor;
+            const tokenEnd = globalPosition + cursor + 1;
+            tokens.push({ type: SLASH_TOKEN, start: tokenStart, end: tokenEnd });
+            cursor++;
+          } else if (code === 34 || code === 39) {
+            // '"' or "'"
+            const char = str[cursor] as "'" | '"';
+            const tokenStart = globalPosition + cursor;
+            const tokenEnd = globalPosition + cursor + 1;
+            tokens.push({ type: QUOTE_CHAR_TOKEN, value: char, start: tokenStart, end: tokenEnd });
+            quoteChar = char;
+            state = STATE_ATTR_VALUE;
+            cursor++;
+          } else if (isIdentifierStart(code)) {
+            const start = cursor;
+            while (cursor < len && isIdentifierChar(str.charCodeAt(cursor))) cursor++;
+            const value = str.slice(start, cursor);
+            if (lastTagName === "") {
+              lastTagName = value;
+            }
+            const tokenStart = globalPosition + start;
+            const tokenEnd = globalPosition + cursor;
+            tokens.push({ type: IDENTIFIER_TOKEN, value, start: tokenStart, end: tokenEnd });
+          } else if (code === 46 && str[cursor + 1] === "." && str[cursor + 2] === ".") {
+            // "."
+            const tokenStart = globalPosition + cursor;
+            const tokenEnd = globalPosition + cursor + 3;
+            tokens.push({ type: SPREAD_TOKEN, start: tokenStart, end: tokenEnd });
+            cursor += 3;
+          } else {
+            throw new Error(`Unexpected Character: ${str[cursor]}`);
           }
-          state = STATE_TEXT;
-          cursor = endOfRawIdx; 
+          break;
+        }
+        case STATE_ATTR_VALUE: {
+          const endQuoteIndex = str.indexOf(quoteChar, cursor);
+          if (endQuoteIndex === -1) {
+            const tokenStart = globalPosition + cursor;
+            const tokenEnd = globalPosition + len;
+            tokens.push({
+              type: ATTRIBUTE_VALUE_TOKEN,
+              value: str.slice(cursor),
+              start: tokenStart,
+              end: tokenEnd,
+            });
+            cursor = len;
+          } else {
+            if (endQuoteIndex > cursor) {
+              const tokenStart = globalPosition + cursor;
+              const tokenEnd = globalPosition + endQuoteIndex;
+              tokens.push({
+                type: ATTRIBUTE_VALUE_TOKEN,
+                value: str.slice(cursor, endQuoteIndex),
+                start: tokenStart,
+                end: tokenEnd,
+              });
+            }
+            const tokenStart = globalPosition + endQuoteIndex;
+            const tokenEnd = globalPosition + endQuoteIndex + 1;
+            tokens.push({ type: QUOTE_CHAR_TOKEN, value: quoteChar as any, start: tokenStart, end: tokenEnd });
+            state = STATE_TAG;
+            quoteChar = "";
+            cursor = endQuoteIndex + 1;
+          }
+          break;
+        }
+        case STATE_COMMENT: {
+          // LOOK FOR END OF COMMENT: - - >
+          const endComment = str.indexOf("-->", cursor);
+
+          if (endComment === -1) {
+            // If we don't find the closer in this string chunk,
+            // we consume the rest of the string and stay in STATE_COMMENT
+            cursor = len;
+          } else {
+            // Found it! Return to normal text parsing
+            state = STATE_TEXT;
+            cursor = endComment + 3;
+          }
+          break;
         }
       }
     }
 
     if (i < strings.length - 1) {
-      tokens.push({ type: EXPRESSION_TOKEN, value: i });
+      if (state !== STATE_COMMENT) {
+        const exprLength = expressionLengths?.[i] ?? 0;
+        const tokenStart = globalPosition + str.length;
+        const tokenEnd = tokenStart + exprLength;
+        tokens.push({ type: EXPRESSION_TOKEN, value: i, start: tokenStart, end: tokenEnd });
+        globalPosition += exprLength;
+      }
     }
+
+    globalPosition += str.length;
   }
 
   return tokens;
-}
+};
