@@ -1,5 +1,5 @@
 import {
-  AttributeToken,
+  QuotedStringToken,
   CLOSE_TAG_TOKEN,
   EQUALS_TOKEN,
   EqualsToken,
@@ -7,7 +7,6 @@ import {
   ExpressionToken,
   IDENTIFIER_TOKEN,
   OPEN_TAG_TOKEN,
-  QUOTE_CHAR_TOKEN,
   SLASH_TOKEN,
   SPREAD_TOKEN,
   SpreadToken,
@@ -18,7 +17,7 @@ import {
   SlashToken,
   IdentifierToken,
   TextToken,
-  QuoteToken,
+  QUOTED_STRING_TOKEN,
 } from "./tokenize";
 
 // Node type constants
@@ -101,13 +100,10 @@ export interface StringProp {
   name: string;
   type: typeof STRING_PROP;
   value: string;
-  quote?: "'" | '"';
   tokens: {
     name: IdentifierToken;
     equals: EqualsToken;
-    openQuote?: QuoteToken;
-    valueTokens?: AttributeToken[];
-    closeQuote?: QuoteToken;
+    string: QuotedStringToken;
   };
 }
 
@@ -115,14 +111,11 @@ export interface ExpressionProp {
   name: string;
   type: typeof EXPRESSION_PROP;
   value: number;
-  quote?: "'" | '"';
-  tokens:{
-      name: IdentifierToken;
-      equals: EqualsToken;
-      expression: ExpressionToken;
-      openQuote?: QuoteToken;
-      closeQuote?: QuoteToken;
-  }
+  tokens: {
+    name: IdentifierToken;
+    equals: EqualsToken;
+    expression: ExpressionToken;
+  };
 }
 
 export interface SpreadProp {
@@ -134,15 +127,10 @@ export interface SpreadProp {
   };
 }
 
-export type PropNode =
-  | BooleanProp
-  | StringProp
-  | ExpressionProp
-  | SpreadProp;
+export type PropNode = BooleanProp | StringProp | ExpressionProp | SpreadProp;
 
 export const parse = (
   tokens: Token[],
-  interpolationStrings?: string[],
 ): RootNode => {
   const root: RootNode = { type: ROOT_NODE, children: [] };
   const stack: (RootNode | ElementNode)[] = [root];
@@ -166,7 +154,11 @@ export const parse = (
             continue;
           }
         }
-        parent.children.push({ type: TEXT_NODE, value, tokens: { text: token } });
+        parent.children.push({
+          type: TEXT_NODE,
+          value,
+          tokens: { text: token },
+        });
         pos++;
         continue;
       }
@@ -207,7 +199,7 @@ export const parse = (
         if (nextToken.type === IDENTIFIER_TOKEN) {
           const tagName = nextToken.value;
           const node = {
-            type: isComponentNode(tagName) ? COMPONENT_NODE : ELEMENT_NODE,
+            type:  ELEMENT_NODE,
             name: tagName,
             props: [],
             children: [],
@@ -215,6 +207,7 @@ export const parse = (
               openTag: {
                 open: token,
                 name: nextToken,
+                close: undefined as CloseTagToken | undefined,
               },
             },
           } as ElementNode;
@@ -261,7 +254,6 @@ export const parse = (
                     name,
                     type: EXPRESSION_PROP,
                     value: valToken.value,
-                    quote: undefined,
                     tokens: {
                       name: attrToken,
                       equals: equalsToken,
@@ -269,72 +261,20 @@ export const parse = (
                     },
                   });
                   pos++;
-                } else if (valToken.type === QUOTE_CHAR_TOKEN) {
+                } else if (valToken.type === QUOTED_STRING_TOKEN) {
                   const quote = valToken.value;
                   const openQuote = valToken;
-                  pos++; // Consume opening quote
-                  const parts: (string | number)[] = [];
-                  const valueTokens: (AttributeToken | ExpressionToken)[] = [];
-                  while (pos < len && tokens[pos].type !== QUOTE_CHAR_TOKEN) {
-                    const part = tokens[pos++] as
-                      | ExpressionToken
-                      | AttributeToken;
-                    if (part.value !== "") parts.push(part.value);
-                    valueTokens.push(part);
-                  }
-                  const closeQuote = tokens[pos] as QuoteToken;
-                  pos++; // Consume closing quote
-
-                  if (parts.length === 0) {
-                    const prop = {
-                      name,
-                      type: STRING_PROP as any,
-                      value: "",
-                      quote,
-                      tokens: {
-                        name: attrToken,
-                        equals: equalsToken,
-                        openQuote,
-                        closeQuote,
-                      },
-                    };
-                    node.props.push(prop);
-                  } else if (parts.length === 1) {
-                    const v = parts[0];
-                    if (typeof v === "string") {
-                      const prop = {
-                        name,
-                        type: STRING_PROP as any,
-                        value: v,
-                        quote,
-                        tokens: {
-                          name: attrToken,
-                          equals: equalsToken,
-                          openQuote,
-                          valueTokens: valueTokens as AttributeToken[],
-                          closeQuote,
-                        },
-                      };
-                      node.props.push(prop);
-                    } else {
-                      const prop = {
-                        name,
-                        type: EXPRESSION_PROP as any,
-                        value: v,
-                        quote,
-                        tokens: {
-                          name: attrToken,
-                          equals: equalsToken,
-                          expression: valueTokens[0] as ExpressionToken,
-                        },
-                      };
-                      node.props.push(prop);
-                    }
-                  } else {
-                    throw new Error(
-                      "Mixed attribute values are not supported. Use either a static string or an expression.",
-                    );
-                  }
+                  node.props.push({
+                    name,
+                    type: STRING_PROP,
+                    value: quote, // Remove quotes
+                    tokens: {
+                      name: attrToken,
+                      equals: equalsToken,
+                      string: openQuote,
+                    },
+                  });
+                  pos++;
                 }
               } else {
                 // Boolean prop

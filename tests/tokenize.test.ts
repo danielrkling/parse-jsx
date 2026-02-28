@@ -6,10 +6,10 @@ import {
   SLASH_TOKEN,
   IDENTIFIER_TOKEN,
   EQUALS_TOKEN,
-  ATTRIBUTE_VALUE_TOKEN,
+  QUOTED_STRING_TOKEN,
   TEXT_TOKEN,
   EXPRESSION_TOKEN,
-  QUOTE_CHAR_TOKEN,
+
   IdentifierToken,
 } from "../src/tokenize";
 
@@ -160,24 +160,15 @@ describe("attribute values", () => {
         start: 7,
         end: 8,
       },
+
       {
-        type: QUOTE_CHAR_TOKEN,
-        value: '"',
-        start: 8,
-        end: 9,
-      },
-      {
-        type: ATTRIBUTE_VALUE_TOKEN,
+        type: QUOTED_STRING_TOKEN,
         value: "hello",
-        start: 9,
-        end: 14,
-      },
-      {
-        type: QUOTE_CHAR_TOKEN,
-        value: '"',
-        start: 14,
+        quote: '"',
+        start: 8,
         end: 15,
       },
+
       {
         type: CLOSE_TAG_TOKEN,
         start: 15,
@@ -213,21 +204,10 @@ describe("attribute values", () => {
         end: 8,
       },
       {
-        type: QUOTE_CHAR_TOKEN,
-        value: "'",
-        start: 8,
-        end: 9,
-      },
-      {
-        type: ATTRIBUTE_VALUE_TOKEN,
+        type: QUOTED_STRING_TOKEN,
         value: "hello",
-        start: 9,
-        end: 14,
-      },
-      {
-        type: QUOTE_CHAR_TOKEN,
-        value: "'",
-        start: 14,
+        quote: "'",
+        start: 8,
         end: 15,
       },
       {
@@ -265,16 +245,10 @@ describe("attribute values", () => {
         end: 11,
       },
       {
-        type: QUOTE_CHAR_TOKEN,
-        value: '"',
+        type: QUOTED_STRING_TOKEN,
+        value: "",
+        quote: '"',
         start: 11,
-        end: 12,
-      },
-
-      {
-        type: QUOTE_CHAR_TOKEN,
-        value: '"',
-        start: 12,
         end: 13,
       },
       {
@@ -326,7 +300,7 @@ describe("attribute values", () => {
 
     expect(tokens).toContainEqual(
       expect.objectContaining({
-        type: ATTRIBUTE_VALUE_TOKEN,
+        type: QUOTED_STRING_TOKEN,
         value: "value with 'nested' quotes",
       }),
     );
@@ -337,7 +311,7 @@ describe("attribute values", () => {
 
     expect(tokens).toContainEqual(
       expect.objectContaining({
-        type: ATTRIBUTE_VALUE_TOKEN,
+        type: QUOTED_STRING_TOKEN,
         value: "!@#$%^&*()_+-=[]{}|;:,.<>?",
       }),
     );
@@ -370,15 +344,10 @@ describe("attribute values", () => {
         end: 10,
       },
       {
-        type: QUOTE_CHAR_TOKEN,
-        value: '"',
+        type: QUOTED_STRING_TOKEN,
+        value: "",
+        quote: '"',
         start: 10,
-        end: 11,
-      },
-      {
-        type: QUOTE_CHAR_TOKEN,
-        value: '"',
-        start: 11,
         end: 12,
       },
       {
@@ -394,7 +363,7 @@ describe("attribute values", () => {
 
     expect(tokens).toContainEqual(
       expect.objectContaining({
-        type: ATTRIBUTE_VALUE_TOKEN,
+        type: QUOTED_STRING_TOKEN,
         value: "https://example.com/path?query=value&other=test#section",
       }),
     );
@@ -411,8 +380,7 @@ describe("attribute values", () => {
       { type: IDENTIFIER_TOKEN, value: "h1", start: 14, end: 16 },
       { type: IDENTIFIER_TOKEN, value: "title", start: 17, end: 22 },
       { type: EQUALS_TOKEN, start: 22, end: 23 },
-      { type: QUOTE_CHAR_TOKEN, value: '"', start: 23, end: 24 },
-      { type: QUOTE_CHAR_TOKEN, value: '"', start: 24, end: 25 },
+      { type: QUOTED_STRING_TOKEN, value: "", quote: '"', start: 23, end: 25 },
       { type: CLOSE_TAG_TOKEN, start: 25, end: 26 },
       { type: OPEN_TAG_TOKEN, start: 26, end: 27 },
       { type: SLASH_TOKEN, start: 27, end: 28 },
@@ -500,91 +468,6 @@ describe("expressions", () => {
     ]);
   });
 
-  it("should mark expression in quoted attribute context", () => {
-    const id = "my-id";
-    const tokens = tokenizeTemplate`<div id="${id}">`;
-
-    expect(tokens).toEqual([
-      {
-        type: OPEN_TAG_TOKEN,
-        start: 0,
-        end: 1,
-      },
-      {
-        type: IDENTIFIER_TOKEN,
-        value: "div",
-        start: 1,
-        end: 4,
-      },
-      {
-        type: IDENTIFIER_TOKEN,
-        value: "id",
-        start: 5,
-        end: 7,
-      },
-      {
-        type: EQUALS_TOKEN,
-        start: 7,
-        end: 8,
-      },
-      { type: QUOTE_CHAR_TOKEN, value: '"', start: 8, end: 9 },
-      {
-        type: EXPRESSION_TOKEN,
-        value: 0,
-        start: 9,
-        end: 9,
-      },
-      { type: QUOTE_CHAR_TOKEN, value: '"', start: 9, end: 10 },
-      {
-        type: CLOSE_TAG_TOKEN,
-        start: 10,
-        end: 11,
-      },
-    ]);
-  });
-
-  it("should mark expression in quoted attribute context", () => {
-    const id = "my-id";
-    const tokens = tokenizeTemplate`<div id='${id}'>`;
-
-    expect(tokens).toEqual([
-      {
-        type: OPEN_TAG_TOKEN,
-        start: 0,
-        end: 1,
-      },
-      {
-        type: IDENTIFIER_TOKEN,
-        value: "div",
-        start: 1,
-        end: 4,
-      },
-      {
-        type: IDENTIFIER_TOKEN,
-        value: "id",
-        start: 5,
-        end: 7,
-      },
-      {
-        type: EQUALS_TOKEN,
-        start: 7,
-        end: 8,
-      },
-      { type: QUOTE_CHAR_TOKEN, value: "'", start: 8, end: 9 },
-      {
-        type: EXPRESSION_TOKEN,
-        value: 0,
-        start: 9,
-        end: 9,
-      },
-      { type: QUOTE_CHAR_TOKEN, value: "'", start: 9, end: 10 },
-      {
-        type: CLOSE_TAG_TOKEN,
-        start: 10,
-        end: 11,
-      },
-    ]);
-  });
 
   it("should handle mixed text and expressions", () => {
     const name = "World";
@@ -612,54 +495,6 @@ describe("expressions", () => {
     ]);
   });
 
-  it("should handle mixed text and expressions in attribute value", () => {
-    const id = "my-id";
-    const tokens = tokenizeTemplate`<div id='id-${id}'>`;
-
-    expect(tokens).toEqual([
-      {
-        type: OPEN_TAG_TOKEN,
-        start: 0,
-        end: 1,
-      },
-      {
-        type: IDENTIFIER_TOKEN,
-        value: "div",
-        start: 1,
-        end: 4,
-      },
-      {
-        type: IDENTIFIER_TOKEN,
-        value: "id",
-        start: 5,
-        end: 7,
-      },
-      {
-        type: EQUALS_TOKEN,
-        start: 7,
-        end: 8,
-      },
-      { type: QUOTE_CHAR_TOKEN, value: "'", start: 8, end: 9 },
-      {
-        type: ATTRIBUTE_VALUE_TOKEN,
-        value: "id-",
-        start: 9,
-        end: 12,
-      },
-      {
-        type: EXPRESSION_TOKEN,
-        value: 0,
-        start: 12,
-        end: 12,
-      },
-      { type: QUOTE_CHAR_TOKEN, value: "'", start: 12, end: 13 },
-      {
-        type: CLOSE_TAG_TOKEN,
-        start: 13,
-        end: 14,
-      },
-    ]);
-  });
 
   it("should handle data attributes with hyphens and underscores", () => {
     const tokens = tokenizeTemplate`<div data-my_value="test" data_other-name="value">`;
@@ -700,21 +535,10 @@ describe("whitespace handling", () => {
         end: 17,
       },
       {
-        type: QUOTE_CHAR_TOKEN,
-        value: '"',
-        start: 20,
-        end: 21,
-      },
-      {
-        type: ATTRIBUTE_VALUE_TOKEN,
+        type: QUOTED_STRING_TOKEN,
         value: "app",
-        start: 21,
-        end: 24,
-      },
-      {
-        type: QUOTE_CHAR_TOKEN,
-        value: '"',
-        start: 24,
+        quote: '"',
+        start: 20,
         end: 25,
       },
       {
@@ -1127,7 +951,7 @@ describe("bad but valid syntaxes", () => {
     );
     expect(tokens).toContainEqual(
       expect.objectContaining({
-        type: ATTRIBUTE_VALUE_TOKEN,
+        type: QUOTED_STRING_TOKEN,
         value: "value",
       }),
     );

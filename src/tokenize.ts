@@ -3,10 +3,10 @@ export const CLOSE_TAG_TOKEN = 1;
 export const SLASH_TOKEN = 2;
 export const IDENTIFIER_TOKEN = 3;
 export const EQUALS_TOKEN = 4;
-export const ATTRIBUTE_VALUE_TOKEN = 5;
+export const QUOTED_STRING_TOKEN = 5;
 export const TEXT_TOKEN = 6;
 export const EXPRESSION_TOKEN = 7;
-export const QUOTE_CHAR_TOKEN = 8;
+// export const QUOTE_CHAR_TOKEN = 8;
 export const SPREAD_TOKEN = 9;
 
 // Character code helpers for fast path testing (faster than regex)
@@ -67,9 +67,10 @@ export interface EqualsToken {
   // value: "=";
 }
 
-export interface AttributeToken {
-  type: typeof ATTRIBUTE_VALUE_TOKEN;
+export interface QuotedStringToken {
+  type: typeof QUOTED_STRING_TOKEN;
   value: string;
+  quote: "'" | '"';
   start: number;
   end: number;
 }
@@ -88,12 +89,12 @@ export interface ExpressionToken {
   end: number;
 }
 
-export interface QuoteToken {
-  type: typeof QUOTE_CHAR_TOKEN;
-  value: "'" | '"';
-  start: number;
-  end: number;
-}
+// export interface QuoteToken {
+//   type: typeof QUOTE_CHAR_TOKEN;
+//   value: "'" | '"';
+//   start: number;
+//   end: number;
+// }
 
 export interface SpreadToken {
   type: typeof SPREAD_TOKEN;
@@ -108,10 +109,10 @@ export type Token =
   | SlashToken
   | IdentifierToken
   | EqualsToken
-  | AttributeToken
+  | QuotedStringToken
   | TextToken
   | ExpressionToken
-  | QuoteToken
+  // | QuoteToken
   | SpreadToken;
 
 // Add a new state for elements that contain raw text only
@@ -144,7 +145,12 @@ export const tokenize = (
             if (cursor < len) {
               const tokenStart = globalPosition + cursor;
               const tokenEnd = globalPosition + len;
-              tokens.push({ type: TEXT_TOKEN, value: str.slice(cursor), start: tokenStart, end: tokenEnd });
+              tokens.push({
+                type: TEXT_TOKEN,
+                value: str.slice(cursor),
+                start: tokenStart,
+                end: tokenEnd,
+              });
             }
             cursor = len;
           } else {
@@ -159,13 +165,21 @@ export const tokenize = (
               });
             }
 
-            if (str[nextTag + 1] === "!" && str[nextTag + 2] === "-" && str[nextTag + 3] === "-") {
+            if (
+              str[nextTag + 1] === "!" &&
+              str[nextTag + 2] === "-" &&
+              str[nextTag + 3] === "-"
+            ) {
               state = STATE_COMMENT;
               cursor = nextTag + 4;
             } else {
               const tokenStart = globalPosition + nextTag;
               const tokenEnd = globalPosition + nextTag + 1;
-              tokens.push({ type: OPEN_TAG_TOKEN, start: tokenStart, end: tokenEnd });
+              tokens.push({
+                type: OPEN_TAG_TOKEN,
+                start: tokenStart,
+                end: tokenEnd,
+              });
               state = STATE_TAG;
               cursor = nextTag + 1;
             }
@@ -183,80 +197,85 @@ export const tokenize = (
             lastTagName = "";
             const tokenStart = globalPosition + cursor;
             const tokenEnd = globalPosition + cursor + 1;
-            tokens.push({ type: CLOSE_TAG_TOKEN, start: tokenStart, end: tokenEnd });
+            tokens.push({
+              type: CLOSE_TAG_TOKEN,
+              start: tokenStart,
+              end: tokenEnd,
+            });
 
             cursor++;
           } else if (code === 61) {
             // "="
             const tokenStart = globalPosition + cursor;
             const tokenEnd = globalPosition + cursor + 1;
-            tokens.push({ type: EQUALS_TOKEN, start: tokenStart, end: tokenEnd });
+            tokens.push({
+              type: EQUALS_TOKEN,
+              start: tokenStart,
+              end: tokenEnd,
+            });
             cursor++;
           } else if (code === 47) {
             // "/"
             const tokenStart = globalPosition + cursor;
             const tokenEnd = globalPosition + cursor + 1;
-            tokens.push({ type: SLASH_TOKEN, start: tokenStart, end: tokenEnd });
+            tokens.push({
+              type: SLASH_TOKEN,
+              start: tokenStart,
+              end: tokenEnd,
+            });
             cursor++;
           } else if (code === 34 || code === 39) {
             // '"' or "'"
             const char = str[cursor] as "'" | '"';
             const tokenStart = globalPosition + cursor;
-            const tokenEnd = globalPosition + cursor + 1;
-            tokens.push({ type: QUOTE_CHAR_TOKEN, value: char, start: tokenStart, end: tokenEnd });
-            quoteChar = char;
-            state = STATE_ATTR_VALUE;
-            cursor++;
+            const endQuoteIndex = str.indexOf(char, cursor + 1);
+
+            if (endQuoteIndex === -1) {
+              throw new Error(
+                `Unterminated string starting at position ${tokenStart}`,
+              );
+            }
+            const tokenEnd = globalPosition + endQuoteIndex + 1;
+            tokens.push({
+              type: QUOTED_STRING_TOKEN,
+              value: str.slice(cursor+1, endQuoteIndex),
+              quote: char,
+              start: tokenStart,
+              end: tokenEnd,
+            });
+            cursor = endQuoteIndex + 1;
           } else if (isIdentifierStart(code)) {
             const start = cursor;
-            while (cursor < len && isIdentifierChar(str.charCodeAt(cursor))) cursor++;
+            while (cursor < len && isIdentifierChar(str.charCodeAt(cursor)))
+              cursor++;
             const value = str.slice(start, cursor);
             if (lastTagName === "") {
               lastTagName = value;
             }
             const tokenStart = globalPosition + start;
             const tokenEnd = globalPosition + cursor;
-            tokens.push({ type: IDENTIFIER_TOKEN, value, start: tokenStart, end: tokenEnd });
-          } else if (code === 46 && str[cursor + 1] === "." && str[cursor + 2] === ".") {
-            // "."
-            const tokenStart = globalPosition + cursor;
-            const tokenEnd = globalPosition + cursor + 3;
-            tokens.push({ type: SPREAD_TOKEN, start: tokenStart, end: tokenEnd });
-            cursor += 3;
-          } else {
-            throw new Error(`Unexpected Character: ${str[cursor]}`);
-          }
-          break;
-        }
-        case STATE_ATTR_VALUE: {
-          const endQuoteIndex = str.indexOf(quoteChar, cursor);
-          if (endQuoteIndex === -1) {
-            const tokenStart = globalPosition + cursor;
-            const tokenEnd = globalPosition + len;
             tokens.push({
-              type: ATTRIBUTE_VALUE_TOKEN,
-              value: str.slice(cursor),
+              type: IDENTIFIER_TOKEN,
+              value,
               start: tokenStart,
               end: tokenEnd,
             });
-            cursor = len;
+          } else if (
+            code === 46 &&
+            str[cursor + 1] === "." &&
+            str[cursor + 2] === "."
+          ) {
+            // "."
+            const tokenStart = globalPosition + cursor;
+            const tokenEnd = globalPosition + cursor + 3;
+            tokens.push({
+              type: SPREAD_TOKEN,
+              start: tokenStart,
+              end: tokenEnd,
+            });
+            cursor += 3;
           } else {
-            if (endQuoteIndex > cursor) {
-              const tokenStart = globalPosition + cursor;
-              const tokenEnd = globalPosition + endQuoteIndex;
-              tokens.push({
-                type: ATTRIBUTE_VALUE_TOKEN,
-                value: str.slice(cursor, endQuoteIndex),
-                start: tokenStart,
-                end: tokenEnd,
-              });
-            }
-            const tokenStart = globalPosition + endQuoteIndex;
-            const tokenEnd = globalPosition + endQuoteIndex + 1;
-            tokens.push({ type: QUOTE_CHAR_TOKEN, value: quoteChar as any, start: tokenStart, end: tokenEnd });
-            state = STATE_TAG;
-            quoteChar = "";
-            cursor = endQuoteIndex + 1;
+            throw new Error(`Unexpected Character: ${str[cursor]}`);
           }
           break;
         }
@@ -283,7 +302,12 @@ export const tokenize = (
         const exprLength = expressionLengths?.[i] ?? 0;
         const tokenStart = globalPosition + str.length;
         const tokenEnd = tokenStart + exprLength;
-        tokens.push({ type: EXPRESSION_TOKEN, value: i, start: tokenStart, end: tokenEnd });
+        tokens.push({
+          type: EXPRESSION_TOKEN,
+          value: i,
+          start: tokenStart,
+          end: tokenEnd,
+        });
         globalPosition += exprLength;
       }
     }
