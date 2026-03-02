@@ -912,6 +912,18 @@ describe("invalid syntax", () => {
   it("should throw on invalid identofier", () => {
     expect(() => tokenizeTemplate`<div 0fa />`).toThrow();
   });
+
+  it("should throw descriptive error for unterminated string", () => {
+    expect(() => tokenizeTemplate`<div id="hello`).toThrow(
+      'Unterminated string: unclosed \'"\' at position 8 in "<div id="hello"',
+    );
+  });
+
+  it("should throw descriptive error for unexpected character", () => {
+    expect(() => tokenizeTemplate`<div @attr />`).toThrow(
+      "Unexpected character: '@' at position 5 in \"...iv @att...\"",
+    );
+  });
 });
 
 describe("bad but valid syntaxes", () => {

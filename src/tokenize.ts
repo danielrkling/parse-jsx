@@ -232,7 +232,7 @@ export const tokenize = (
 
             if (endQuoteIndex === -1) {
               throw new Error(
-                `Unterminated string starting at position ${tokenStart}`,
+                `Unterminated string: unclosed '${char}' at position ${tokenStart} in "${str}"`,
               );
             }
             const tokenEnd = globalPosition + endQuoteIndex + 1;
@@ -275,7 +275,11 @@ export const tokenize = (
             });
             cursor += 3;
           } else {
-            throw new Error(`Unexpected Character: ${str[cursor]}`);
+            const pos = globalPosition + cursor;
+            const ctxStart = Math.max(0, cursor - 3);
+            const ctxEnd = Math.min(len, cursor + 4);
+            const snippet = (ctxStart > 0 ? "..." : "") + str.slice(ctxStart, ctxEnd) + (ctxEnd < len ? "..." : "");
+            throw new Error(`Unexpected character: '${str[cursor]}' at position ${pos} in "${snippet}"`);
           }
           break;
         }
