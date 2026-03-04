@@ -16,7 +16,7 @@
   "scripts": {
     "build": "tsdown src/index.ts --format esm --minify",
     "dev": "tsc --watch",
-    "test": "vitest",
+    "test": "vitest run",
     "test:coverage": "vitest --coverage",
     "bench": "vitest bench",
     "type-check": "tsc --noEmit"

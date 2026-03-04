@@ -183,16 +183,21 @@ export const parse = (
         if (nextToken.type === SLASH_TOKEN) {
           pos++; // Consume '/'
           const nameToken = tokens[pos];
+          const currentElement = stack[stack.length - 1] as ElementNode;
           if (
             stack.length > 1 &&
             nameToken?.type === IDENTIFIER_TOKEN &&
-            (stack[stack.length - 1] as ElementNode).name === nameToken.value
+            currentElement.name === nameToken.value
           ) {
             stack.pop();
             pos += 2; // Consume 'name' and '>'
             continue;
           }
-          throw new Error("Mismatched closing tag.");
+          const expectedName = stack.length > 1 ? (stack[stack.length - 1] as ElementNode).name : "none";
+          const gotName = nameToken?.type === IDENTIFIER_TOKEN ? nameToken.value : `token type ${nameToken?.type}`;
+          throw new Error(
+            `Mismatched closing tag: expected </${expectedName}>, got </${gotName}>`,
+          );
         }
 
         // Handle Opening Tag: <name ...>
@@ -237,8 +242,9 @@ export const parse = (
                 });
                 pos += 2; // Consume '...' and expression
               } else {
+                const gotType = expr ? `token type ${expr.type}` : 'end of input';
                 throw new Error(
-                  "Spread operator must be followed by an expression.",
+                  `Spread operator must be followed by an expression, got: ${gotType} at position ${attrToken.end}`,
                 );
               }
             } else if (attrToken.type === IDENTIFIER_TOKEN) {
@@ -289,7 +295,14 @@ export const parse = (
                 pos++;
               }
             } else {
-              throw new Error("Invalid attribute.");
+              const tokenInfo = attrToken.type === EXPRESSION_TOKEN 
+                ? `expression (index ${attrToken.value})`
+                : attrToken.type === QUOTED_STRING_TOKEN 
+                  ? `string "${attrToken.value}"`
+                  : `token type ${attrToken.type}`;
+              throw new Error(
+                `Invalid attribute: unexpected ${tokenInfo} at position ${attrToken.start}. Expected attribute name or spread operator.`,
+              );
             }
           }
 
@@ -308,8 +321,11 @@ export const parse = (
           }
           continue;
         } else {
+          const tokenDesc = nextToken 
+            ? `token type ${nextToken.type} (value: ${(nextToken as any).value ?? 'n/a'})`
+            : 'end of input';
           throw new Error(
-            `Expected identifier after opening tag, got: ${nextToken.type}`,
+            `Expected tag name after "<", got: ${tokenDesc}`,
           );
         }
       }
@@ -320,7 +336,8 @@ export const parse = (
   }
 
   if (stack.length > 1) {
-    throw new Error("Unclosed tag found.");
+    const unclosedTags = stack.slice(1).map(n => (n as ElementNode).name).join(", ");
+    throw new Error(`Unclosed tag found: <${unclosedTags}>`);
   }
 
   return root;
