@@ -11,7 +11,7 @@ import {
   EXPRESSION_TOKEN,
 
   IdentifierToken,
-} from "../src/tokenize";
+} from "../src/dev";
 
 function tokenizeTemplate(strings: TemplateStringsArray, ...values: any[]) {
   return tokenize(strings);

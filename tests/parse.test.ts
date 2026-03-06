@@ -10,7 +10,7 @@ import {
   STRING_PROP,
   EXPRESSION_PROP,
   SPREAD_PROP,
-} from "../src";
+} from "../src/dev";
 
 function parseTemplate(strings: TemplateStringsArray, ...values: any[]) {
   return parse(tokenize(strings));

@@ -11,14 +11,19 @@
       "import": "./dist/index.mjs",
       "require": "./dist/index.mjs",
       "types": "./dist/index.d.mts"
+    },
+    "./dev": {
+      "import": "./dist/dev.mjs",
+      "require": "./dist/dev.mjs",
+      "types": "./dist/dev.d.mts"
     }
   },
   "scripts": {
-    "build": "tsdown src/index.ts --format esm --minify",
+    "build": "tsdown src/index.ts src/dev.ts --format esm --minify",
     "dev": "tsc --watch",
     "test": "vitest run",
     "test:coverage": "vitest --coverage",
-    "bench": "vitest bench",
+    "bench": "vitest bench run",
     "type-check": "tsc --noEmit"
   },
   "keywords": [

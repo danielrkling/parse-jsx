@@ -1,5 +1,6 @@
-export { tokenize } from "./tokenize-prod";
+export { tokenize } from "./tokenize-dev";
 export {
+  tokenize as tokenizeDev,
   OPEN_TAG_TOKEN,
   CLOSE_TAG_TOKEN,
   SLASH_TOKEN,
@@ -19,7 +20,7 @@ export {
   type EqualsToken,
   type QuotedStringToken,
   type SpreadToken,
-} from "./tokenize-prod";
+} from "./tokenize-dev";
 export {
   parse,
   ROOT_NODE,
@@ -40,4 +41,4 @@ export {
   type StringProp,
   type ExpressionProp,
   type SpreadProp,
-} from "./parse-prod";
+} from "./parse-dev";
