@@ -22,17 +22,8 @@ describe("basic tags", () => {
     const tokens = tokenizeTemplate`<div`;
 
     expect(tokens).toEqual([
-      {
-        type: OPEN_TAG_TOKEN,
-        start: 0,
-        end: 1,
-      },
-      {
-        type: IDENTIFIER_TOKEN,
-        value: "div",
-        start: 1,
-        end: 4,
-      },
+      { type: OPEN_TAG_TOKEN, segment: 0, start: 0, end: 1 },
+      { type: IDENTIFIER_TOKEN, value: "div", segment: 0, start: 1, end: 4 },
     ]);
   });
 
@@ -40,22 +31,9 @@ describe("basic tags", () => {
     const tokens = tokenizeTemplate`<div>`;
 
     expect(tokens).toEqual([
-      {
-        type: OPEN_TAG_TOKEN,
-        start: 0,
-        end: 1,
-      },
-      {
-        type: IDENTIFIER_TOKEN,
-        value: "div",
-        start: 1,
-        end: 4,
-      },
-      {
-        type: CLOSE_TAG_TOKEN,
-        start: 4,
-        end: 5,
-      },
+      { type: OPEN_TAG_TOKEN, segment: 0, start: 0, end: 1 },
+      { type: IDENTIFIER_TOKEN, value: "div", segment: 0, start: 1, end: 4 },
+      { type: CLOSE_TAG_TOKEN, segment: 0, start: 4, end: 5 },
     ]);
   });
 
@@ -63,27 +41,10 @@ describe("basic tags", () => {
     const tokens = tokenizeTemplate`<div />`;
 
     expect(tokens).toEqual([
-      {
-        type: OPEN_TAG_TOKEN,
-        start: 0,
-        end: 1,
-      },
-      {
-        type: IDENTIFIER_TOKEN,
-        value: "div",
-        start: 1,
-        end: 4,
-      },
-      {
-        type: SLASH_TOKEN,
-        start: 5,
-        end: 6,
-      },
-      {
-        type: CLOSE_TAG_TOKEN,
-        start: 6,
-        end: 7,
-      },
+      { type: OPEN_TAG_TOKEN, segment: 0, start: 0, end: 1 },
+      { type: IDENTIFIER_TOKEN, value: "div", segment: 0, start: 1, end: 4 },
+      { type: SLASH_TOKEN, segment: 0, start: 5, end: 6 },
+      { type: CLOSE_TAG_TOKEN, segment: 0, start: 6, end: 7 },
     ]);
   });
 
@@ -91,44 +52,13 @@ describe("basic tags", () => {
     const tokens = tokenizeTemplate`<div></div>`;
 
     expect(tokens).toEqual([
-      {
-        type: OPEN_TAG_TOKEN,
-        start: 0,
-        end: 1,
-      },
-      {
-        type: IDENTIFIER_TOKEN,
-        value: "div",
-        start: 1,
-        end: 4,
-      },
-      {
-        type: CLOSE_TAG_TOKEN,
-        start: 4,
-        end: 5,
-      },
-      {
-        type: OPEN_TAG_TOKEN,
-        start: 5,
-        end: 6,
-      },
-      {
-        type: SLASH_TOKEN,
-        start: 6,
-        end: 7,
-      },
-      {
-        type: IDENTIFIER_TOKEN,
-        value: "div",
-        start: 7,
-        end: 10,
-      },
-
-      {
-        type: CLOSE_TAG_TOKEN,
-        start: 10,
-        end: 11,
-      },
+      { type: OPEN_TAG_TOKEN, segment: 0, start: 0, end: 1 },
+      { type: IDENTIFIER_TOKEN, value: "div", segment: 0, start: 1, end: 4 },
+      { type: CLOSE_TAG_TOKEN, segment: 0, start: 4, end: 5 },
+      { type: OPEN_TAG_TOKEN, segment: 0, start: 5, end: 6 },
+      { type: SLASH_TOKEN, segment: 0, start: 6, end: 7 },
+      { type: IDENTIFIER_TOKEN, value: "div", segment: 0, start: 7, end: 10 },
+      { type: CLOSE_TAG_TOKEN, segment: 0, start: 10, end: 11 },
     ]);
   });
 });
@@ -138,42 +68,12 @@ describe("attribute values", () => {
     const tokens = tokenizeTemplate`<div id="hello">`;
 
     expect(tokens).toEqual([
-      {
-        type: OPEN_TAG_TOKEN,
-        start: 0,
-        end: 1,
-      },
-      {
-        type: IDENTIFIER_TOKEN,
-        value: "div",
-        start: 1,
-        end: 4,
-      },
-      {
-        type: IDENTIFIER_TOKEN,
-        value: "id",
-        start: 5,
-        end: 7,
-      },
-      {
-        type: EQUALS_TOKEN,
-        start: 7,
-        end: 8,
-      },
-
-      {
-        type: QUOTED_STRING_TOKEN,
-        value: "hello",
-        quote: '"',
-        start: 8,
-        end: 15,
-      },
-
-      {
-        type: CLOSE_TAG_TOKEN,
-        start: 15,
-        end: 16,
-      },
+      { type: OPEN_TAG_TOKEN, segment: 0, start: 0, end: 1 },
+      { type: IDENTIFIER_TOKEN, value: "div", segment: 0, start: 1, end: 4 },
+      { type: IDENTIFIER_TOKEN, value: "id", segment: 0, start: 5, end: 7 },
+      { type: EQUALS_TOKEN, segment: 0, start: 7, end: 8 },
+      { type: QUOTED_STRING_TOKEN, value: "hello", quote: '"', segment: 0, start: 8, end: 15 },
+      { type: CLOSE_TAG_TOKEN, segment: 0, start: 15, end: 16 },
     ]);
   });
 
@@ -181,40 +81,12 @@ describe("attribute values", () => {
     const tokens = tokenizeTemplate`<div id='hello'>`;
 
     expect(tokens).toEqual([
-      {
-        type: OPEN_TAG_TOKEN,
-        start: 0,
-        end: 1,
-      },
-      {
-        type: IDENTIFIER_TOKEN,
-        value: "div",
-        start: 1,
-        end: 4,
-      },
-      {
-        type: IDENTIFIER_TOKEN,
-        value: "id",
-        start: 5,
-        end: 7,
-      },
-      {
-        type: EQUALS_TOKEN,
-        start: 7,
-        end: 8,
-      },
-      {
-        type: QUOTED_STRING_TOKEN,
-        value: "hello",
-        quote: "'",
-        start: 8,
-        end: 15,
-      },
-      {
-        type: CLOSE_TAG_TOKEN,
-        start: 15,
-        end: 16,
-      },
+      { type: OPEN_TAG_TOKEN, segment: 0, start: 0, end: 1 },
+      { type: IDENTIFIER_TOKEN, value: "div", segment: 0, start: 1, end: 4 },
+      { type: IDENTIFIER_TOKEN, value: "id", segment: 0, start: 5, end: 7 },
+      { type: EQUALS_TOKEN, segment: 0, start: 7, end: 8 },
+      { type: QUOTED_STRING_TOKEN, value: "hello", quote: "'", segment: 0, start: 8, end: 15 },
+      { type: CLOSE_TAG_TOKEN, segment: 0, start: 15, end: 16 },
     ]);
   });
 
@@ -222,40 +94,12 @@ describe("attribute values", () => {
     const tokens = tokenizeTemplate`<div class="">`;
 
     expect(tokens).toEqual([
-      {
-        type: OPEN_TAG_TOKEN,
-        start: 0,
-        end: 1,
-      },
-      {
-        type: IDENTIFIER_TOKEN,
-        value: "div",
-        start: 1,
-        end: 4,
-      },
-      {
-        type: IDENTIFIER_TOKEN,
-        value: "class",
-        start: 5,
-        end: 10,
-      },
-      {
-        type: EQUALS_TOKEN,
-        start: 10,
-        end: 11,
-      },
-      {
-        type: QUOTED_STRING_TOKEN,
-        value: "",
-        quote: '"',
-        start: 11,
-        end: 13,
-      },
-      {
-        type: CLOSE_TAG_TOKEN,
-        start: 13,
-        end: 14,
-      },
+      { type: OPEN_TAG_TOKEN, segment: 0, start: 0, end: 1 },
+      { type: IDENTIFIER_TOKEN, value: "div", segment: 0, start: 1, end: 4 },
+      { type: IDENTIFIER_TOKEN, value: "class", segment: 0, start: 5, end: 10 },
+      { type: EQUALS_TOKEN, segment: 0, start: 10, end: 11 },
+      { type: QUOTED_STRING_TOKEN, value: "", quote: '"', segment: 0, start: 11, end: 13 },
+      { type: CLOSE_TAG_TOKEN, segment: 0, start: 13, end: 14 },
     ]);
   });
 
@@ -263,35 +107,11 @@ describe("attribute values", () => {
     const tokens = tokenizeTemplate`<div enabled bool>`;
 
     expect(tokens).toEqual([
-      {
-        type: OPEN_TAG_TOKEN,
-        start: 0,
-        end: 1,
-      },
-      {
-        type: IDENTIFIER_TOKEN,
-        value: "div",
-        start: 1,
-        end: 4,
-      },
-      {
-        type: IDENTIFIER_TOKEN,
-        value: "enabled",
-        start: 5,
-        end: 12,
-      },
-      {
-        type: IDENTIFIER_TOKEN,
-        value: "bool",
-        start: 13,
-        end: 17,
-      },
-
-      {
-        type: CLOSE_TAG_TOKEN,
-        start: 17,
-        end: 18,
-      },
+      { type: OPEN_TAG_TOKEN, segment: 0, start: 0, end: 1 },
+      { type: IDENTIFIER_TOKEN, value: "div", segment: 0, start: 1, end: 4 },
+      { type: IDENTIFIER_TOKEN, value: "enabled", segment: 0, start: 5, end: 12 },
+      { type: IDENTIFIER_TOKEN, value: "bool", segment: 0, start: 13, end: 17 },
+      { type: CLOSE_TAG_TOKEN, segment: 0, start: 17, end: 18 },
     ]);
   });
 
@@ -321,40 +141,12 @@ describe("attribute values", () => {
     const tokens = tokenizeTemplate`<div attr="">`;
 
     expect(tokens).toEqual([
-      {
-        type: OPEN_TAG_TOKEN,
-        start: 0,
-        end: 1,
-      },
-      {
-        type: IDENTIFIER_TOKEN,
-        value: "div",
-        start: 1,
-        end: 4,
-      },
-      {
-        type: IDENTIFIER_TOKEN,
-        value: "attr",
-        start: 5,
-        end: 9,
-      },
-      {
-        type: EQUALS_TOKEN,
-        start: 9,
-        end: 10,
-      },
-      {
-        type: QUOTED_STRING_TOKEN,
-        value: "",
-        quote: '"',
-        start: 10,
-        end: 12,
-      },
-      {
-        type: CLOSE_TAG_TOKEN,
-        start: 12,
-        end: 13,
-      },
+      { type: OPEN_TAG_TOKEN, segment: 0, start: 0, end: 1 },
+      { type: IDENTIFIER_TOKEN, value: "div", segment: 0, start: 1, end: 4 },
+      { type: IDENTIFIER_TOKEN, value: "attr", segment: 0, start: 5, end: 9 },
+      { type: EQUALS_TOKEN, segment: 0, start: 9, end: 10 },
+      { type: QUOTED_STRING_TOKEN, value: "", quote: '"', segment: 0, start: 10, end: 12 },
+      { type: CLOSE_TAG_TOKEN, segment: 0, start: 12, end: 13 },
     ]);
   });
 
@@ -375,18 +167,18 @@ describe("attribute values", () => {
           `;
 
     expect(tokens).toEqual([
-      { type: TEXT_TOKEN, value: "\n            ", start: 0, end: 13 },
-      { type: OPEN_TAG_TOKEN, start: 13, end: 14 },
-      { type: IDENTIFIER_TOKEN, value: "h1", start: 14, end: 16 },
-      { type: IDENTIFIER_TOKEN, value: "title", start: 17, end: 22 },
-      { type: EQUALS_TOKEN, start: 22, end: 23 },
-      { type: QUOTED_STRING_TOKEN, value: "", quote: '"', start: 23, end: 25 },
-      { type: CLOSE_TAG_TOKEN, start: 25, end: 26 },
-      { type: OPEN_TAG_TOKEN, start: 26, end: 27 },
-      { type: SLASH_TOKEN, start: 27, end: 28 },
-      { type: IDENTIFIER_TOKEN, value: "h1", start: 28, end: 30 },
-      { type: CLOSE_TAG_TOKEN, start: 30, end: 31 },
-      { type: TEXT_TOKEN, value: "\n          ", start: 31, end: 42 },
+      { type: TEXT_TOKEN, value: "\n            ", segment: 0, start: 0, end: 13 },
+      { type: OPEN_TAG_TOKEN, segment: 0, start: 13, end: 14 },
+      { type: IDENTIFIER_TOKEN, value: "h1", segment: 0, start: 14, end: 16 },
+      { type: IDENTIFIER_TOKEN, value: "title", segment: 0, start: 17, end: 22 },
+      { type: EQUALS_TOKEN, segment: 0, start: 22, end: 23 },
+      { type: QUOTED_STRING_TOKEN, value: "", quote: '"', segment: 0, start: 23, end: 25 },
+      { type: CLOSE_TAG_TOKEN, segment: 0, start: 25, end: 26 },
+      { type: OPEN_TAG_TOKEN, segment: 0, start: 26, end: 27 },
+      { type: SLASH_TOKEN, segment: 0, start: 27, end: 28 },
+      { type: IDENTIFIER_TOKEN, value: "h1", segment: 0, start: 28, end: 30 },
+      { type: CLOSE_TAG_TOKEN, segment: 0, start: 30, end: 31 },
+      { type: TEXT_TOKEN, value: "\n          ", segment: 0, start: 31, end: 42 },
     ]);
   });
 });
@@ -397,12 +189,7 @@ describe("expressions", () => {
     const tokens = tokenizeTemplate`${value}`;
 
     expect(tokens).toEqual([
-      {
-        type: EXPRESSION_TOKEN,
-        value: 0,
-        start: 0,
-        end: 0,
-      },
+      { type: EXPRESSION_TOKEN, value: 0},
     ]);
   });
 
@@ -412,18 +199,8 @@ describe("expressions", () => {
     const tokens = tokenizeTemplate`${a}${b}`;
 
     expect(tokens).toEqual([
-      {
-        type: EXPRESSION_TOKEN,
-        value: 0,
-        start: 0,
-        end: 0,
-      },
-      {
-        type: EXPRESSION_TOKEN,
-        value: 1,
-        start: 0,
-        end: 0,
-      },
+      { type: EXPRESSION_TOKEN, value: 0},
+      { type: EXPRESSION_TOKEN, value: 1},
     ]);
   });
 
@@ -432,69 +209,25 @@ describe("expressions", () => {
     const tokens = tokenizeTemplate`<div id=${id}>`;
 
     expect(tokens).toEqual([
-      {
-        type: OPEN_TAG_TOKEN,
-        start: 0,
-        end: 1,
-      },
-      {
-        type: IDENTIFIER_TOKEN,
-        value: "div",
-        start: 1,
-        end: 4,
-      },
-      {
-        type: IDENTIFIER_TOKEN,
-        value: "id",
-        start: 5,
-        end: 7,
-      },
-      {
-        type: EQUALS_TOKEN,
-        start: 7,
-        end: 8,
-      },
-      {
-        type: EXPRESSION_TOKEN,
-        value: 0,
-        start: 8,
-        end: 8,
-      },
-      {
-        type: CLOSE_TAG_TOKEN,
-        start: 8,
-        end: 9,
-      },
+      { type: OPEN_TAG_TOKEN, segment: 0, start: 0, end: 1 },
+      { type: IDENTIFIER_TOKEN, value: "div", segment: 0, start: 1, end: 4 },
+      { type: IDENTIFIER_TOKEN, value: "id", segment: 0, start: 5, end: 7 },
+      { type: EQUALS_TOKEN, segment: 0, start: 7, end: 8 },
+      { type: EXPRESSION_TOKEN, value: 0},
+      { type: CLOSE_TAG_TOKEN, segment: 1, start: 0, end: 1 },
     ]);
   });
-
 
   it("should handle mixed text and expressions", () => {
     const name = "World";
     const tokens = tokenizeTemplate`Hello ${name}!`;
 
     expect(tokens).toEqual([
-      {
-        type: TEXT_TOKEN,
-        value: "Hello ",
-        start: 0,
-        end: 6,
-      },
-      {
-        type: EXPRESSION_TOKEN,
-        value: 0,
-        start: 6,
-        end: 6,
-      },
-      {
-        type: TEXT_TOKEN,
-        value: "!",
-        start: 6,
-        end: 7,
-      },
+      { type: TEXT_TOKEN, value: "Hello ", segment: 0, start: 0, end: 6 },
+      { type: EXPRESSION_TOKEN, value: 0 },
+      { type: TEXT_TOKEN, value: "!", segment: 1, start: 0, end: 1 },
     ]);
   });
-
 
   it("should handle data attributes with hyphens and underscores", () => {
     const tokens = tokenizeTemplate`<div data-my_value="test" data_other-name="value">`;
@@ -510,42 +243,13 @@ describe("whitespace handling", () => {
   it("should skip whitespace inside tags", () => {
     const tokens = tokenizeTemplate`< \n  div   id   =   "app"  >`;
 
-    // Should not have whitespace tokens in tag context
     expect(tokens).toEqual([
-      {
-        type: OPEN_TAG_TOKEN,
-        start: 0,
-        end: 1,
-      },
-      {
-        type: IDENTIFIER_TOKEN,
-        value: "div",
-        start: 5,
-        end: 8,
-      },
-      {
-        type: IDENTIFIER_TOKEN,
-        value: "id",
-        start: 11,
-        end: 13,
-      },
-      {
-        type: EQUALS_TOKEN,
-        start: 16,
-        end: 17,
-      },
-      {
-        type: QUOTED_STRING_TOKEN,
-        value: "app",
-        quote: '"',
-        start: 20,
-        end: 25,
-      },
-      {
-        type: CLOSE_TAG_TOKEN,
-        start: 27,
-        end: 28,
-      },
+      { type: OPEN_TAG_TOKEN, segment: 0, start: 0, end: 1 },
+      { type: IDENTIFIER_TOKEN, value: "div", segment: 0, start: 5, end: 8 },
+      { type: IDENTIFIER_TOKEN, value: "id", segment: 0, start: 11, end: 13 },
+      { type: EQUALS_TOKEN, segment: 0, start: 16, end: 17 },
+      { type: QUOTED_STRING_TOKEN, value: "app", quote: '"', segment: 0, start: 20, end: 25 },
+      { type: CLOSE_TAG_TOKEN, segment: 0, start: 27, end: 28 },
     ]);
   });
 
@@ -553,12 +257,7 @@ describe("whitespace handling", () => {
     const tokens = tokenizeTemplate`  Hello World  `;
 
     expect(tokens).toEqual([
-      {
-        type: TEXT_TOKEN,
-        value: "  Hello World  ",
-        start: 0,
-        end: 15,
-      },
+      { type: TEXT_TOKEN, value: "  Hello World  ", segment: 0, start: 0, end: 15 },
     ]);
   });
 
@@ -568,49 +267,14 @@ describe("whitespace handling", () => {
       </div>`;
 
     expect(tokens).toEqual([
-      {
-        type: OPEN_TAG_TOKEN,
-        start: 0,
-        end: 1,
-      },
-      {
-        type: IDENTIFIER_TOKEN,
-        value: "div",
-        start: 1,
-        end: 4,
-      },
-      {
-        type: CLOSE_TAG_TOKEN,
-        start: 4,
-        end: 5,
-      },
-      {
-        type: TEXT_TOKEN,
-        value: "\n        Hello\n      ",
-        start: 5,
-        end: 26,
-      },
-      {
-        type: OPEN_TAG_TOKEN,
-        start: 26,
-        end: 27,
-      },
-      {
-        type: SLASH_TOKEN,
-        start: 27,
-        end: 28,
-      },
-      {
-        type: IDENTIFIER_TOKEN,
-        value: "div",
-        start: 28,
-        end: 31,
-      },
-      {
-        type: CLOSE_TAG_TOKEN,
-        start: 31,
-        end: 32,
-      },
+      { type: OPEN_TAG_TOKEN, segment: 0, start: 0, end: 1 },
+      { type: IDENTIFIER_TOKEN, value: "div", segment: 0, start: 1, end: 4 },
+      { type: CLOSE_TAG_TOKEN, segment: 0, start: 4, end: 5 },
+      { type: TEXT_TOKEN, value: "\n        Hello\n      ", segment: 0, start: 5, end: 26 },
+      { type: OPEN_TAG_TOKEN, segment: 0, start: 26, end: 27 },
+      { type: SLASH_TOKEN, segment: 0, start: 27, end: 28 },
+      { type: IDENTIFIER_TOKEN, value: "div", segment: 0, start: 28, end: 31 },
+      { type: CLOSE_TAG_TOKEN, segment: 0, start: 31, end: 32 },
     ]);
   });
 
@@ -618,12 +282,7 @@ describe("whitespace handling", () => {
     const tokens = tokenizeTemplate`\tHello\nWorld `;
 
     expect(tokens).toEqual([
-      {
-        type: TEXT_TOKEN,
-        value: "\tHello\nWorld ",
-        start: 0,
-        end: 13,
-      },
+      { type: TEXT_TOKEN, value: "\tHello\nWorld ", segment: 0, start: 0, end: 13 },
     ]);
   });
 
@@ -632,24 +291,9 @@ describe("whitespace handling", () => {
     const tokens = tokenizeTemplate`  ${name}  `;
 
     expect(tokens).toEqual([
-      {
-        type: TEXT_TOKEN,
-        value: "  ",
-        start: 0,
-        end: 2,
-      },
-      {
-        type: EXPRESSION_TOKEN,
-        value: 0,
-        start: 2,
-        end: 2,
-      },
-      {
-        type: TEXT_TOKEN,
-        value: "  ",
-        start: 2,
-        end: 4,
-      },
+      { type: TEXT_TOKEN, value: "  ", segment: 0, start: 0, end: 2 },
+      { type: EXPRESSION_TOKEN, value: 0 },
+      { type: TEXT_TOKEN, value: "  ", segment: 1, start: 0, end: 2 },
     ]);
   });
 });
@@ -665,12 +309,7 @@ describe("edge cases", () => {
     const tokens = tokenizeTemplate`   `;
 
     expect(tokens).toEqual([
-      {
-        type: TEXT_TOKEN,
-        value: "   ",
-        start: 0,
-        end: 3,
-      },
+      { type: TEXT_TOKEN, value: "   ", segment: 0, start: 0, end: 3 },
     ]);
   });
 
@@ -678,12 +317,7 @@ describe("edge cases", () => {
     const tokens = tokenizeTemplate`Hello & goodbye`;
 
     expect(tokens).toEqual([
-      {
-        type: TEXT_TOKEN,
-        value: "Hello & goodbye",
-        start: 0,
-        end: 15,
-      },
+      { type: TEXT_TOKEN, value: "Hello & goodbye", segment: 0, start: 0, end: 15 },
     ]);
   });
 
@@ -693,18 +327,8 @@ describe("edge cases", () => {
     const tokens = tokenizeTemplate`${a}${b}`;
 
     expect(tokens).toEqual([
-      {
-        type: EXPRESSION_TOKEN,
-        value: 0,
-        start: 0,
-        end: 0,
-      },
-      {
-        type: EXPRESSION_TOKEN,
-        value: 1,
-        start: 0,
-        end: 0,
-      },
+      { type: EXPRESSION_TOKEN, value: 0 },
+      { type: EXPRESSION_TOKEN, value: 1 },
     ]);
   });
 
@@ -730,27 +354,10 @@ describe("special characters in names", () => {
     const tokens = tokenizeTemplate`<my-component />`;
 
     expect(tokens).toEqual([
-      {
-        type: OPEN_TAG_TOKEN,
-        start: 0,
-        end: 1,
-      },
-      {
-        type: IDENTIFIER_TOKEN,
-        value: "my-component",
-        start: 1,
-        end: 13,
-      },
-      {
-        type: SLASH_TOKEN,
-        start: 14,
-        end: 15,
-      },
-      {
-        type: CLOSE_TAG_TOKEN,
-        start: 15,
-        end: 16,
-      },
+      { type: OPEN_TAG_TOKEN, segment: 0, start: 0, end: 1 },
+      { type: IDENTIFIER_TOKEN, value: "my-component", segment: 0, start: 1, end: 13 },
+      { type: SLASH_TOKEN, segment: 0, start: 14, end: 15 },
+      { type: CLOSE_TAG_TOKEN, segment: 0, start: 15, end: 16 },
     ]);
   });
 
@@ -758,27 +365,10 @@ describe("special characters in names", () => {
     const tokens = tokenizeTemplate`<my.component />`;
 
     expect(tokens).toEqual([
-      {
-        type: OPEN_TAG_TOKEN,
-        start: 0,
-        end: 1,
-      },
-      {
-        type: IDENTIFIER_TOKEN,
-        value: "my.component",
-        start: 1,
-        end: 13,
-      },
-      {
-        type: SLASH_TOKEN,
-        start: 14,
-        end: 15,
-      },
-      {
-        type: CLOSE_TAG_TOKEN,
-        start: 15,
-        end: 16,
-      },
+      { type: OPEN_TAG_TOKEN, segment: 0, start: 0, end: 1 },
+      { type: IDENTIFIER_TOKEN, value: "my.component", segment: 0, start: 1, end: 13 },
+      { type: SLASH_TOKEN, segment: 0, start: 14, end: 15 },
+      { type: CLOSE_TAG_TOKEN, segment: 0, start: 15, end: 16 },
     ]);
   });
 
@@ -786,27 +376,10 @@ describe("special characters in names", () => {
     const tokens = tokenizeTemplate`<svg:rect />`;
 
     expect(tokens).toEqual([
-      {
-        type: OPEN_TAG_TOKEN,
-        start: 0,
-        end: 1,
-      },
-      {
-        type: IDENTIFIER_TOKEN,
-        value: "svg:rect",
-        start: 1,
-        end: 9,
-      },
-      {
-        type: SLASH_TOKEN,
-        start: 10,
-        end: 11,
-      },
-      {
-        type: CLOSE_TAG_TOKEN,
-        start: 11,
-        end: 12,
-      },
+      { type: OPEN_TAG_TOKEN, segment: 0, start: 0, end: 1 },
+      { type: IDENTIFIER_TOKEN, value: "svg:rect", segment: 0, start: 1, end: 9 },
+      { type: SLASH_TOKEN, segment: 0, start: 10, end: 11 },
+      { type: CLOSE_TAG_TOKEN, segment: 0, start: 11, end: 12 },
     ]);
   });
 
@@ -814,27 +387,10 @@ describe("special characters in names", () => {
     const tokens = tokenizeTemplate`<my_component />`;
 
     expect(tokens).toEqual([
-      {
-        type: OPEN_TAG_TOKEN,
-        start: 0,
-        end: 1,
-      },
-      {
-        type: IDENTIFIER_TOKEN,
-        value: "my_component",
-        start: 1,
-        end: 13,
-      },
-      {
-        type: SLASH_TOKEN,
-        start: 14,
-        end: 15,
-      },
-      {
-        type: CLOSE_TAG_TOKEN,
-        start: 15,
-        end: 16,
-      },
+      { type: OPEN_TAG_TOKEN, segment: 0, start: 0, end: 1 },
+      { type: IDENTIFIER_TOKEN, value: "my_component", segment: 0, start: 1, end: 13 },
+      { type: SLASH_TOKEN, segment: 0, start: 14, end: 15 },
+      { type: CLOSE_TAG_TOKEN, segment: 0, start: 15, end: 16 },
     ]);
   });
 
@@ -842,52 +398,14 @@ describe("special characters in names", () => {
     const tokens = tokenizeTemplate`<div data-id data_id data.id data:id dataid$>`;
 
     expect(tokens).toEqual([
-      {
-        type: OPEN_TAG_TOKEN,
-        start: 0,
-        end: 1,
-      },
-      {
-        type: IDENTIFIER_TOKEN,
-        value: "div",
-        start: 1,
-        end: 4,
-      },
-      {
-        type: IDENTIFIER_TOKEN,
-        value: "data-id",
-        start: 5,
-        end: 12,
-      },
-      {
-        type: IDENTIFIER_TOKEN,
-        value: "data_id",
-        start: 13,
-        end: 20,
-      },
-      {
-        type: IDENTIFIER_TOKEN,
-        value: "data.id",
-        start: 21,
-        end: 28,
-      },
-      {
-        type: IDENTIFIER_TOKEN,
-        value: "data:id",
-        start: 29,
-        end: 36,
-      },
-      {
-        type: IDENTIFIER_TOKEN,
-        value: "dataid$",
-        start: 37,
-        end: 44,
-      },
-      {
-        type: CLOSE_TAG_TOKEN,
-        start: 44,
-        end: 45,
-      },
+      { type: OPEN_TAG_TOKEN, segment: 0, start: 0, end: 1 },
+      { type: IDENTIFIER_TOKEN, value: "div", segment: 0, start: 1, end: 4 },
+      { type: IDENTIFIER_TOKEN, value: "data-id", segment: 0, start: 5, end: 12 },
+      { type: IDENTIFIER_TOKEN, value: "data_id", segment: 0, start: 13, end: 20 },
+      { type: IDENTIFIER_TOKEN, value: "data.id", segment: 0, start: 21, end: 28 },
+      { type: IDENTIFIER_TOKEN, value: "data:id", segment: 0, start: 29, end: 36 },
+      { type: IDENTIFIER_TOKEN, value: "dataid$", segment: 0, start: 37, end: 44 },
+      { type: CLOSE_TAG_TOKEN, segment: 0, start: 44, end: 45 },
     ]);
   });
 });
@@ -915,13 +433,13 @@ describe("invalid syntax", () => {
 
   it("should throw descriptive error for unterminated string", () => {
     expect(() => tokenizeTemplate`<div id="hello`).toThrow(
-      'Unterminated string: unclosed \'"\' at position 8 in "<div id="hello"',
+      "Unterminated string: unclosed '\"'",
     );
   });
 
   it("should throw descriptive error for unexpected character", () => {
     expect(() => tokenizeTemplate`<div @attr />`).toThrow(
-      "Unexpected character: '@' at position 5 in \"...iv @att...\"",
+      "Unexpected character: '@'",
     );
   });
 });
@@ -974,13 +492,13 @@ describe("comments handling", () => {
   it("should not tokenzie comments", () => {
     const tokens = tokenizeTemplate`<div><!-- This is a comment --></div>`;
     expect(tokens).toEqual([
-      { type: OPEN_TAG_TOKEN, start: 0, end: 1 },
-      { type: IDENTIFIER_TOKEN, value: "div", start: 1, end: 4 },
-      { type: CLOSE_TAG_TOKEN, start: 4, end: 5 },
-      { type: OPEN_TAG_TOKEN, start: 31, end: 32 },
-      { type: SLASH_TOKEN, start: 32, end: 33 },
-      { type: IDENTIFIER_TOKEN, value: "div", start: 33, end: 36 },
-      { type: CLOSE_TAG_TOKEN, start: 36, end: 37 },
+      { type: OPEN_TAG_TOKEN, segment: 0, start: 0, end: 1 },
+      { type: IDENTIFIER_TOKEN, value: "div", segment: 0, start: 1, end: 4 },
+      { type: CLOSE_TAG_TOKEN, segment: 0, start: 4, end: 5 },
+      { type: OPEN_TAG_TOKEN, segment: 0, start: 31, end: 32 },
+      { type: SLASH_TOKEN, segment: 0, start: 32, end: 33 },
+      { type: IDENTIFIER_TOKEN, value: "div", segment: 0, start: 33, end: 36 },
+      { type: CLOSE_TAG_TOKEN, segment: 0, start: 36, end: 37 },
     ]);
   });
 

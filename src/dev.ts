@@ -1,3 +1,4 @@
+export { ParseJSXError } from "./error";
 export { tokenize } from "./tokenize-dev";
 export {
   tokenize as tokenizeDev,

@@ -23,7 +23,7 @@
     "dev": "tsc --watch",
     "test": "vitest run",
     "test:coverage": "vitest --coverage",
-    "bench": "vitest bench run",
+    "bench": "vitest bench --run",
     "type-check": "tsc --noEmit"
   },
   "keywords": [

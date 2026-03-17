@@ -1,3 +1,4 @@
+import { ParseJSXError } from "./error";
 export const OPEN_TAG_TOKEN = 0;
 export const CLOSE_TAG_TOKEN = 1;
 export const SLASH_TOKEN = 2;
@@ -6,101 +7,75 @@ export const EQUALS_TOKEN = 4;
 export const QUOTED_STRING_TOKEN = 5;
 export const TEXT_TOKEN = 6;
 export const EXPRESSION_TOKEN = 7;
-// export const QUOTE_CHAR_TOKEN = 8;
 export const SPREAD_TOKEN = 9;
 
-// Character code helpers for fast path testing (faster than regex)
 const isIdentifierChar = (code: number): boolean => {
   return (
     isIdentifierStart(code) ||
-    (code >= 48 && code <= 58) || // 0-9, :
-    code === 46 || // .
+    (code >= 48 && code <= 58) ||
+    code === 46 ||
     code === 45
-  ); // -
+  );
 };
 
 const isIdentifierStart = (code: number): boolean => {
   return (
-    (code >= 65 && code <= 90) || // A-Z
-    (code >= 97 && code <= 122) || // a-z
-    code === 95 || // _
-    code === 36 // $
+    (code >= 65 && code <= 90) ||
+    (code >= 97 && code <= 122) ||
+    code === 95 ||
+    code === 36
   );
 };
 
 const isWhitespace = (code: number): boolean => {
-  return (code >= 9 && code <= 13) || code === 32; // \t \n \v \f \r space
+  return (code >= 9 && code <= 13) || code === 32;
 };
 
-export interface OpenTagToken {
+export interface BaseToken {
+  segment: number;
+  start: number;
+  end: number;
+}
+
+export interface OpenTagToken extends BaseToken {
   type: typeof OPEN_TAG_TOKEN;
-  start: number;
-  end: number;
-  // value: "<";
 }
 
-export interface CloseTagToken {
+export interface CloseTagToken extends BaseToken {
   type: typeof CLOSE_TAG_TOKEN;
-  start: number;
-  end: number;
-  // value: ">";
 }
 
-export interface SlashToken {
+export interface SlashToken extends BaseToken {
   type: typeof SLASH_TOKEN;
-  start: number;
-  end: number;
-  // value: "/";
 }
 
-export interface IdentifierToken {
+export interface IdentifierToken extends BaseToken {
   type: typeof IDENTIFIER_TOKEN;
   value: string;
-  start: number;
-  end: number;
 }
 
-export interface EqualsToken {
+export interface EqualsToken extends BaseToken {
   type: typeof EQUALS_TOKEN;
-  start: number;
-  end: number;
-  // value: "=";
 }
 
-export interface QuotedStringToken {
+export interface QuotedStringToken extends BaseToken {
   type: typeof QUOTED_STRING_TOKEN;
   value: string;
   quote: "'" | '"';
-  start: number;
-  end: number;
 }
 
-export interface TextToken {
+export interface TextToken extends BaseToken {
   type: typeof TEXT_TOKEN;
   value: string;
-  start: number;
-  end: number;
+}
+
+export interface SpreadToken extends BaseToken {
+  type: typeof SPREAD_TOKEN;
 }
 
 export interface ExpressionToken {
   type: typeof EXPRESSION_TOKEN;
   value: number;
-  start: number;
-  end: number;
-}
-
-// export interface QuoteToken {
-//   type: typeof QUOTE_CHAR_TOKEN;
-//   value: "'" | '"';
-//   start: number;
-//   end: number;
-// }
-
-export interface SpreadToken {
-  type: typeof SPREAD_TOKEN;
-  start: number;
-  end: number;
-  // value: "...";
 }
 
 export type Token =
@@ -112,24 +87,15 @@ export type Token =
   | QuotedStringToken
   | TextToken
   | ExpressionToken
-  // | QuoteToken
   | SpreadToken;
 
-// Add a new state for elements that contain raw text only
 const STATE_TEXT = 0;
 const STATE_TAG = 1;
-const STATE_ATTR_VALUE = 2;
 const STATE_COMMENT = 4;
 
-export const tokenize = (
-  strings: TemplateStringsArray | string[],
-  expressionLengths?: number[],
-): Token[] => {
+export const tokenize = (strings: TemplateStringsArray | string[]): Token[] => {
   const tokens: Token[] = [];
   let state = STATE_TEXT;
-  let quoteChar: '"' | "'" | "" = "";
-  let lastTagName = "";
-  let globalPosition = 0;
 
   for (let i = 0; i < strings.length; i++) {
     const str = strings[i];
@@ -139,29 +105,26 @@ export const tokenize = (
     while (cursor < len) {
       switch (state) {
         case STATE_TEXT: {
-          lastTagName = "";
           const nextTag = str.indexOf("<", cursor);
           if (nextTag === -1) {
             if (cursor < len) {
-              const tokenStart = globalPosition + cursor;
-              const tokenEnd = globalPosition + len;
               tokens.push({
                 type: TEXT_TOKEN,
                 value: str.slice(cursor),
-                start: tokenStart,
-                end: tokenEnd,
+                segment: i,
+                start: cursor,
+                end: len,
               });
             }
             cursor = len;
           } else {
             if (nextTag > cursor) {
-              const tokenStart = globalPosition + cursor;
-              const tokenEnd = globalPosition + nextTag;
               tokens.push({
                 type: TEXT_TOKEN,
                 value: str.slice(cursor, nextTag),
-                start: tokenStart,
-                end: tokenEnd,
+                segment: i,
+                start: cursor,
+                end: nextTag,
               });
             }
 
@@ -173,12 +136,11 @@ export const tokenize = (
               state = STATE_COMMENT;
               cursor = nextTag + 4;
             } else {
-              const tokenStart = globalPosition + nextTag;
-              const tokenEnd = globalPosition + nextTag + 1;
               tokens.push({
                 type: OPEN_TAG_TOKEN,
-                start: tokenStart,
-                end: tokenEnd,
+                segment: i,
+                start: nextTag,
+                end: nextTag + 1,
               });
               state = STATE_TAG;
               cursor = nextTag + 1;
@@ -192,56 +154,46 @@ export const tokenize = (
           if (isWhitespace(code)) {
             cursor++;
           } else if (code === 62) {
-            // ">"
             state = STATE_TEXT;
-            lastTagName = "";
-            const tokenStart = globalPosition + cursor;
-            const tokenEnd = globalPosition + cursor + 1;
             tokens.push({
               type: CLOSE_TAG_TOKEN,
-              start: tokenStart,
-              end: tokenEnd,
+              segment: i,
+              start: cursor,
+              end: cursor + 1,
             });
-
             cursor++;
           } else if (code === 61) {
-            // "="
-            const tokenStart = globalPosition + cursor;
-            const tokenEnd = globalPosition + cursor + 1;
             tokens.push({
               type: EQUALS_TOKEN,
-              start: tokenStart,
-              end: tokenEnd,
+              segment: i,
+              start: cursor,
+              end: cursor + 1,
             });
             cursor++;
           } else if (code === 47) {
-            // "/"
-            const tokenStart = globalPosition + cursor;
-            const tokenEnd = globalPosition + cursor + 1;
             tokens.push({
               type: SLASH_TOKEN,
-              start: tokenStart,
-              end: tokenEnd,
+              segment: i,
+              start: cursor,
+              end: cursor + 1,
             });
             cursor++;
           } else if (code === 34 || code === 39) {
-            // '"' or "'"
             const char = str[cursor] as "'" | '"';
-            const tokenStart = globalPosition + cursor;
             const endQuoteIndex = str.indexOf(char, cursor + 1);
 
             if (endQuoteIndex === -1) {
-              throw new Error(
-                `Unterminated string: unclosed '${char}' at position ${tokenStart} in "${str}"`,
+              throw new ParseJSXError(
+                `Unterminated string: unclosed '${char}'`,
               );
             }
-            const tokenEnd = globalPosition + endQuoteIndex + 1;
             tokens.push({
               type: QUOTED_STRING_TOKEN,
-              value: str.slice(cursor+1, endQuoteIndex),
+              value: str.slice(cursor + 1, endQuoteIndex),
               quote: char,
-              start: tokenStart,
-              end: tokenEnd,
+              segment: i,
+              start: cursor,
+              end: endQuoteIndex + 1,
             });
             cursor = endQuoteIndex + 1;
           } else if (isIdentifierStart(code)) {
@@ -249,50 +201,41 @@ export const tokenize = (
             while (cursor < len && isIdentifierChar(str.charCodeAt(cursor)))
               cursor++;
             const value = str.slice(start, cursor);
-            if (lastTagName === "") {
-              lastTagName = value;
-            }
-            const tokenStart = globalPosition + start;
-            const tokenEnd = globalPosition + cursor;
             tokens.push({
               type: IDENTIFIER_TOKEN,
               value,
-              start: tokenStart,
-              end: tokenEnd,
+              segment: i,
+              start,
+              end: cursor,
             });
           } else if (
             code === 46 &&
             str[cursor + 1] === "." &&
             str[cursor + 2] === "."
           ) {
-            // "."
-            const tokenStart = globalPosition + cursor;
-            const tokenEnd = globalPosition + cursor + 3;
             tokens.push({
               type: SPREAD_TOKEN,
-              start: tokenStart,
-              end: tokenEnd,
+              segment: i,
+              start: cursor,
+              end: cursor + 3,
             });
             cursor += 3;
           } else {
-            const pos = globalPosition + cursor;
             const ctxStart = Math.max(0, cursor - 3);
             const ctxEnd = Math.min(len, cursor + 4);
-            const snippet = (ctxStart > 0 ? "..." : "") + str.slice(ctxStart, ctxEnd) + (ctxEnd < len ? "..." : "");
-            throw new Error(`Unexpected character: '${str[cursor]}' at position ${pos} in "${snippet}"`);
+            const snippet = str.slice(ctxStart, ctxEnd);
+            throw new ParseJSXError(
+              `Unexpected character: '${str[cursor]}' at "${snippet}"`,
+            );
           }
           break;
         }
         case STATE_COMMENT: {
-          // LOOK FOR END OF COMMENT: - - >
           const endComment = str.indexOf("-->", cursor);
 
           if (endComment === -1) {
-            // If we don't find the closer in this string chunk,
-            // we consume the rest of the string and stay in STATE_COMMENT
             cursor = len;
           } else {
-            // Found it! Return to normal text parsing
             state = STATE_TEXT;
             cursor = endComment + 3;
           }
@@ -303,20 +246,12 @@ export const tokenize = (
 
     if (i < strings.length - 1) {
       if (state !== STATE_COMMENT) {
-        const exprLength = expressionLengths?.[i] ?? 0;
-        const tokenStart = globalPosition + str.length;
-        const tokenEnd = tokenStart + exprLength;
         tokens.push({
           type: EXPRESSION_TOKEN,
           value: i,
-          start: tokenStart,
-          end: tokenEnd,
         });
-        globalPosition += exprLength;
       }
     }
-
-    globalPosition += str.length;
   }
 
   return tokens;
