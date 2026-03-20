@@ -1,11 +1,12 @@
-import { Token } from "./tokenize-dev";
+import { BaseToken } from "./tokenize-dev";
 
 export class ParseJSXError extends Error {
   constructor(
     message: string,
-    public token?: Token
+    segment?: number,
+    position?: number
   ) {
-    super(message);
+    super(message+ (segment !== undefined && position !== undefined ? ` segment ${segment}, position ${position}` : ""));
     this.name = "ParseJSXError";
   }
 }

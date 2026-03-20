@@ -1,13 +1,13 @@
 import { ParseJSXError } from "./error";
-export const OPEN_TAG_TOKEN = 0;
-export const CLOSE_TAG_TOKEN = 1;
-export const SLASH_TOKEN = 2;
-export const IDENTIFIER_TOKEN = 3;
-export const EQUALS_TOKEN = 4;
-export const QUOTED_STRING_TOKEN = 5;
-export const TEXT_TOKEN = 6;
-export const EXPRESSION_TOKEN = 7;
-export const SPREAD_TOKEN = 9;
+export const OPEN_TAG_TOKEN = "<";
+export const CLOSE_TAG_TOKEN = ">";
+export const SLASH_TOKEN = "/";
+export const IDENTIFIER_TOKEN = "IDENTIFIER";
+export const EQUALS_TOKEN = "=";
+export const STRING_TOKEN = "STRING";
+export const TEXT_TOKEN = "TEXT";
+export const EXPRESSION_TOKEN = "EXPRESSION";
+export const SPREAD_TOKEN = "SPREAD";
 
 const isIdentifierChar = (code: number): boolean => {
   return (
@@ -58,8 +58,8 @@ export interface EqualsToken extends BaseToken {
   type: typeof EQUALS_TOKEN;
 }
 
-export interface QuotedStringToken extends BaseToken {
-  type: typeof QUOTED_STRING_TOKEN;
+export interface StringToken extends BaseToken {
+  type: typeof STRING_TOKEN;
   value: string;
   quote: "'" | '"';
 }
@@ -84,14 +84,14 @@ export type Token =
   | SlashToken
   | IdentifierToken
   | EqualsToken
-  | QuotedStringToken
+  | StringToken
   | TextToken
   | ExpressionToken
   | SpreadToken;
 
 const STATE_TEXT = 0;
 const STATE_TAG = 1;
-const STATE_COMMENT = 4;
+const STATE_COMMENT = 2;
 
 export const tokenize = (strings: TemplateStringsArray | string[]): Token[] => {
   const tokens: Token[] = [];
@@ -183,12 +183,10 @@ export const tokenize = (strings: TemplateStringsArray | string[]): Token[] => {
             const endQuoteIndex = str.indexOf(char, cursor + 1);
 
             if (endQuoteIndex === -1) {
-              throw new ParseJSXError(
-                `Unterminated string: unclosed '${char}'`,
-              );
+              throw new ParseJSXError(`Unterminated string`, i, cursor);
             }
             tokens.push({
-              type: QUOTED_STRING_TOKEN,
+              type: STRING_TOKEN,
               value: str.slice(cursor + 1, endQuoteIndex),
               quote: char,
               segment: i,
@@ -221,11 +219,10 @@ export const tokenize = (strings: TemplateStringsArray | string[]): Token[] => {
             });
             cursor += 3;
           } else {
-            const ctxStart = Math.max(0, cursor - 3);
-            const ctxEnd = Math.min(len, cursor + 4);
-            const snippet = str.slice(ctxStart, ctxEnd);
             throw new ParseJSXError(
-              `Unexpected character: '${str[cursor]}' at "${snippet}"`,
+              `Unexpected character: '${str[cursor]}'`,
+              i,
+              cursor
             );
           }
           break;

@@ -1,6 +1,6 @@
 import { ParseJSXError } from "./error";
 import {
-  QuotedStringToken,
+  StringToken,
   CLOSE_TAG_TOKEN,
   EQUALS_TOKEN,
   EqualsToken,
@@ -18,20 +18,21 @@ import {
   SlashToken,
   IdentifierToken,
   TextToken,
-  QUOTED_STRING_TOKEN,
+  STRING_TOKEN,
+  BaseToken,
 } from "./tokenize-dev";
 
 // Node type constants
-export const ROOT_NODE = 0;
-export const ELEMENT_NODE = 1;
-export const TEXT_NODE = 2;
-export const EXPRESSION_NODE = 3;
+export const ROOT_NODE = "ROOT";
+export const ELEMENT_NODE = "ELEMENT";
+export const TEXT_NODE = "TEXT";
+export const EXPRESSION_NODE = "EXPRESSION";
 
 // Prop type constants
-export const BOOLEAN_PROP = 0;
-export const STRING_PROP = 1;
-export const EXPRESSION_PROP = 2;
-export const SPREAD_PROP = 3;
+export const BOOLEAN_PROP = "BOOLEAN";
+export const STRING_PROP = "STRING";
+export const EXPRESSION_PROP = "EXPRESSION";
+export const SPREAD_PROP = "SPREAD";
 
 export type NodeType =
   | typeof ROOT_NODE
@@ -104,7 +105,7 @@ export interface StringProp {
   tokens: {
     name: IdentifierToken;
     equals: EqualsToken;
-    string: QuotedStringToken;
+    string: StringToken;
   };
 }
 
@@ -130,9 +131,7 @@ export interface SpreadProp {
 
 export type PropNode = BooleanProp | StringProp | ExpressionProp | SpreadProp;
 
-export const parse = (
-  tokens: Token[],
-): RootNode => {
+export const parse = (tokens: Token[]): RootNode => {
   const root: RootNode = { type: ROOT_NODE, children: [] };
   const stack: (RootNode | ElementNode)[] = [root];
   let pos = 0;
@@ -176,37 +175,34 @@ export const parse = (
       }
 
       case OPEN_TAG_TOKEN: {
-        // --- TAG ---
-        pos++; // Consume '<'
-        const nextToken = tokens[pos];
+        const nextToken = tokens[++pos];
 
         // Handle Closing Tag: </name>
         if (nextToken.type === SLASH_TOKEN) {
-          pos++; // Consume '/'
-          const nameToken = tokens[pos];
-          const currentElement = stack[stack.length - 1] as ElementNode;
+          const nameToken = tokens[++pos];
+          const closeToken = tokens[++pos];
+          const currentParent = stack[stack.length - 1] as ElementNode;
           if (
             stack.length > 1 &&
-            nameToken?.type === IDENTIFIER_TOKEN &&
-            currentElement.name === nameToken.value
+            closeToken.type === CLOSE_TAG_TOKEN &&
+            ((nameToken?.type === IDENTIFIER_TOKEN &&
+              currentParent.name === nameToken.value) ||
+              ((nameToken?.type === EXPRESSION_TOKEN ||
+                nameToken.type === SLASH_TOKEN) &&
+                typeof currentParent.name === "number"))
           ) {
             stack.pop();
-            pos += 2; // Consume 'name' and '>'
+            pos++;
             continue;
           }
-          const expectedName = stack.length > 1 ? (stack[stack.length - 1] as ElementNode).name : "none";
-          const gotName = nameToken?.type === IDENTIFIER_TOKEN ? nameToken.value : `token type ${nameToken?.type}`;
-          throw new ParseJSXError(
-            `Mismatched closing tag: expected </${expectedName}>, got </${gotName}>`,
-            nameToken,
-          );
+          throw new Error("Mismatched closing tag.");
         }
 
         // Handle Opening Tag: <name ...>
         if (nextToken.type === IDENTIFIER_TOKEN) {
           const tagName = nextToken.value;
           const node = {
-            type:  ELEMENT_NODE,
+            type: ELEMENT_NODE,
             name: tagName,
             props: [],
             children: [],
@@ -244,10 +240,10 @@ export const parse = (
                 });
                 pos += 2; // Consume '...' and expression
               } else {
-                const gotType = expr ? `token type ${expr.type}` : 'end of input';
                 throw new ParseJSXError(
-                  `Spread operator must be followed by an expression, got: ${gotType}`,
-                  attrToken,
+                  `Spread operator must be followed by an expression. `,
+                  attrToken.segment,
+                  attrToken.start,
                 );
               }
             } else if (attrToken.type === IDENTIFIER_TOKEN) {
@@ -270,7 +266,7 @@ export const parse = (
                     },
                   });
                   pos++;
-                } else if (valToken.type === QUOTED_STRING_TOKEN) {
+                } else if (valToken.type === STRING_TOKEN) {
                   const quote = valToken.value;
                   const openQuote = valToken;
                   node.props.push({
@@ -298,14 +294,10 @@ export const parse = (
                 pos++;
               }
             } else {
-              const tokenInfo = attrToken.type === EXPRESSION_TOKEN 
-                ? `expression (index ${attrToken.value})`
-                : attrToken.type === QUOTED_STRING_TOKEN 
-                  ? `string "${attrToken.value}"`
-                  : `token type ${attrToken.type}`;
               throw new ParseJSXError(
-                `Invalid attribute: unexpected ${tokenInfo}. Expected attribute name or spread operator.`,
-                attrToken,
+                `Invalid attribute: unexpected ${attrToken.type}.`,
+                (attrToken as BaseToken).segment,
+                (attrToken as BaseToken).start,
               );
             }
           }
@@ -325,12 +317,10 @@ export const parse = (
           }
           continue;
         } else {
-          const tokenDesc = nextToken 
-            ? `token type ${nextToken.type} (value: ${(nextToken as any).value ?? 'n/a'})`
-            : 'end of input';
           throw new ParseJSXError(
-            `Expected tag name after "<", got: ${tokenDesc}`,
-            nextToken,
+            `Expected tag name after "<"`,
+            (token as BaseToken)?.segment,
+            (token as BaseToken)?.start,
           );
         }
       }
@@ -338,13 +328,17 @@ export const parse = (
       default:
         throw new ParseJSXError(
           `Unexpected token: ${JSON.stringify(token)}`,
-          token,
+          (token as BaseToken)?.segment,
+          (token as BaseToken)?.start,
         );
     }
   }
 
   if (stack.length > 1) {
-    const unclosedTags = stack.slice(1).map(n => (n as ElementNode).name).join(", ");
+    const unclosedTags = stack
+      .slice(1)
+      .map((n) => (n as ElementNode).name)
+      .join(", ");
     throw new ParseJSXError(`Unclosed tag found: <${unclosedTags}>`);
   }
 

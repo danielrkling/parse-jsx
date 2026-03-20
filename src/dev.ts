@@ -7,7 +7,7 @@ export {
   SLASH_TOKEN,
   IDENTIFIER_TOKEN,
   EQUALS_TOKEN,
-  QUOTED_STRING_TOKEN,
+  STRING_TOKEN as QUOTED_STRING_TOKEN,
   TEXT_TOKEN,
   EXPRESSION_TOKEN,
   SPREAD_TOKEN,
@@ -19,7 +19,7 @@ export {
   type CloseTagToken,
   type SlashToken,
   type EqualsToken,
-  type QuotedStringToken,
+  type StringToken as QuotedStringToken,
   type SpreadToken,
 } from "./tokenize-dev";
 export {
